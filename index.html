@@ -375,7 +375,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
 <div class="toast" id="toast"></div>
 
 <script src="locations.js"></script>
-<script src="marks.js"></script>
+<script src="marks.js"></script><script src="makers.js"></script>
 <script>
 "use strict";
 
@@ -400,8 +400,8 @@ const TYPES = {
     { k: "类别", opts: ITEM_CATEGORIES, req: true, keep: true },
     { k: "单位", opts: UNITS, keep: true },
     { k: "低库存提醒", type: "number", hint: "0=不提醒" },
-    { k: "库位", place: "shelf", keep: true, hint: "填了初始库存时必填" },
-    { k: "初始库存", type: "number" },
+    { k: "库位", place: "shelf", req: true, keep: true },
+    { k: "初始库存", type: "number", req: true, hint: "这个库位放了多少，没有写 0" },
     { k: "状态", opts: ["正常", "损坏", "停用"], keep: true },
     { k: "备注", area: true },
   ]},
@@ -1181,7 +1181,8 @@ const VI = {
  "产线，如 FHA-01": "Chuyền, vd FHA-01",
  "留空自动生成": "để trống sẽ tự tạo",
  "0=不提醒": "0 = không nhắc",
- "填了初始库存时必填": "bắt buộc nếu có tồn ban đầu",
+ "这个库位放了多少，没有写 0": "Số lượng ở vị trí này, không có thì ghi 0",
+ "初始库存必须是 0 或正整数": "Tồn ban đầu phải là 0 hoặc số nguyên dương",
  "铭牌序列号，不可重复": "số seri trên bảng tên, không trùng",
  "须晚于校准时间": "phải sau ngày hiệu chuẩn",
  "手持终端绑定用，可不填": "dùng gắn với thiết bị cầm tay, có thể bỏ trống",
@@ -1377,6 +1378,15 @@ function renderForm() {
   toggleWhen(); updatePlaceView(); renderExtra(); updatePhotoHint(); syncFilled();
 }
 
+// 型号厂商对应表（电脑端「数据标准化 → 型号厂商」，makers.js 导出）：型号写完整、厂商还空着，就自动填上厂商
+let autoMaker = "";
+function fillMaker() {
+  const model = $("f_型号"), maker = $("f_厂商"), table = window.MODEL_MAKERS;
+  if (!model || !maker || !table) return;
+  const found = table[model.value.replace(/\s+/g, "").toLowerCase()];
+  if (found && (!maker.value || maker.value === autoMaker)) { maker.value = autoMaker = found; }
+  else if (!found && maker.value && maker.value === autoMaker) { maker.value = autoMaker = ""; }
+}
 // 同型号的设备 / 治具共用一张照片：这个型号拍过一张，后面的同型号不用再拍（系统导入时会自动继承）
 let modelPhotos = new Set();
 const modelKey = (t, m) => t + "|" + String(m || "").trim().toLowerCase();
@@ -1476,7 +1486,7 @@ async function save() {
   if (missing) { toast(`请填写「${missing.k}」`); const el = $(missing.place ? "p_b" : "f_" + missing.k); if (el) el.focus(); return; }
   if (data["校准时间"] && data["下次校准时间"] && data["下次校准时间"] <= data["校准时间"]) { toast("下次校准时间必须晚于校准时间"); $("f_下次校准时间").focus(); return; }
   if (!photo && photoNeeded()) { toast(type === "item" ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
-  if (type === "item" && Number(data["初始库存"]) > 0 && !data["库位"]) { toast("填了初始库存，必须选择库位"); $("p_b").focus(); return; }
+  if (type === "item" && !/^\d+$/.test(String(data["初始库存"]).trim())) { toast("初始库存必须是 0 或正整数"); $("f_初始库存").focus(); return; }
   // 每一行就是一台（一件），编号和出厂编号不能重复
   const old = await allRecs();
   for (const k of ["设备编号", "治具编号", "物品编号", "出厂编号"]) {
@@ -1981,6 +1991,7 @@ $("fields").addEventListener("click", e => {
 $("fields").addEventListener("input", e => {
   const el = e.target, k = el.id && el.id.slice(2);
   if (el.dataset && el.dataset.code && !e.isComposing) { const c = codeClean(k, el.value); if (c !== el.value) el.value = c; }
+  if (k === "型号") fillMaker();
   updatePlaceView(); updatePhotoHint(); syncFilled(); });
 $("fields").addEventListener("change", () => { toggleWhen(); syncFilled(); });
 // 日期框：没点之前是普通文字框（好放名称），点进去才变成日期选择
