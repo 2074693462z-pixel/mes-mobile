@@ -1,0 +1,2085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="物品采集">
+<title>物品采集</title>
+<style>
+:root { --bg:#f4f6fa; --card:#fff; --text:#1c2333; --sub:#667085; --line:#d8dee9; --main:#1f6feb; --danger:#d92d20; --ok:#12805c; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#12151c; --card:#1b2029; --text:#e6e9f0; --sub:#98a2b3; --line:#2f3745; --main:#4c8dff; --danger:#f97066; --ok:#3ccb92; }
+}
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,-apple-system,"Microsoft YaHei",sans-serif; padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+header { position:sticky; top:0; z-index:5; background:var(--main); color:#fff; padding:12px 16px; padding-top:calc(12px + env(safe-area-inset-top)); display:flex; align-items:center; justify-content:space-between; }
+header h1 { font-size:18px; margin:0; }
+header span { font-size:13px; opacity:.9; }
+main { padding:12px 16px; max-width:640px; margin:0 auto; }
+.seg { display:flex; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:12px; }
+.seg button { flex:1; border:0; background:none; color:var(--text); padding:11px 4px; font-size:15px; }
+.seg button.on { background:var(--main); color:#fff; font-weight:600; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+label { display:block; font-size:13px; color:var(--sub); margin:10px 0 4px; }
+label:first-child { margin-top:0; }
+label b { color:var(--danger); }
+input, select, textarea { width:100%; font:inherit; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px; }
+textarea { min-height:64px; resize:vertical; }
+.hint { font-size:12px; color:var(--sub); margin-top:4px; }
+.photo { display:flex; gap:12px; align-items:center; }
+.photo .pv { width:96px; height:96px; border-radius:10px; background:var(--bg); border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:12px; overflow:hidden; flex:none; }
+.photo .pv img { width:100%; height:100%; object-fit:cover; }
+.btn { display:inline-block; border:0; border-radius:10px; padding:12px 16px; font-size:16px; background:var(--main); color:#fff; }
+.btn.ghost { background:none; color:var(--main); border:1px solid var(--main); }
+.btn.danger { background:none; color:var(--danger); border:1px solid var(--danger); }
+.btn.block { width:100%; }
+.row { display:flex; gap:8px; }
+.row > * { flex:1; }
+.keep { display:flex; align-items:center; gap:8px; margin-top:12px; font-size:14px; color:var(--sub); }
+.keep input { width:auto; }
+.bar { position:fixed; left:0; right:0; bottom:0; background:var(--card); border-top:1px solid var(--line); padding:10px 16px calc(10px + env(safe-area-inset-bottom)); display:flex; gap:8px; z-index:6; }
+.bar .btn { flex:1; }
+#list { padding:4px 12px; }
+.item { display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+.item:last-child { border-bottom:0; }
+.selbar { display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12px; color:var(--sub); }
+.selbar .btn { padding:6px 14px; font-size:14px; flex:none; }
+.ck { flex:none; display:flex; align-items:center; justify-content:center; width:32px; height:40px; }
+.ck input { width:20px; height:20px; margin:0; }
+.item:active { background:var(--bg); }
+.item img, .item .ph { width:40px; height:40px; border-radius:6px; object-fit:cover; background:var(--bg); flex:none; }
+.item img.shared { opacity:.55; }
+.item .t { flex:1; min-width:0; line-height:1.3; }
+.item .t div { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.item .t .n { font-size:14px; }
+.item .t .s { font-size:12px; color:var(--sub); }
+.item .t .s.code { color:var(--text); }
+.item .when { flex:none; font-size:11px; color:var(--sub); text-align:right; line-height:1.3; }
+.tag { font-size:10px; padding:0 5px; border-radius:5px; background:var(--bg); border:1px solid var(--line); color:var(--sub); margin-right:4px; }
+.tag.done { color:var(--ok); border-color:var(--ok); }
+.editbar { display:flex; align-items:center; justify-content:space-between; gap:8px; background:#fff7e0; color:#7a5200; border:1px solid #f0d58a; border-radius:10px; padding:8px 12px; margin-bottom:12px; font-size:14px; }
+.editbar .btn { padding:6px 12px; font-size:14px; background:#fff; }
+.dsheet { max-height:90vh; overflow:auto; }
+.dhead { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.dhead h2 { margin:0; font-size:16px; }
+.dgrid { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:14px; }
+.dgrid .k { color:var(--sub); white-space:nowrap; }
+.dgrid .v { word-break:break-all; }
+.dphotos { display:flex; gap:8px; margin:8px 0; flex-wrap:wrap; }
+.dphotos figure { margin:0; text-align:center; font-size:11px; color:var(--sub); }
+.dphotos img { width:96px; height:96px; object-fit:cover; border-radius:8px; display:block; }
+.dbtns { display:flex; gap:8px; margin-top:12px; }
+.dbtns .btn { flex:1; padding:10px 4px; font-size:15px; }
+.empty { text-align:center; color:var(--sub); padding:32px 0; }
+.toast { position:fixed; left:50%; bottom:calc(96px + env(safe-area-inset-bottom)); transform:translateX(-50%); background:#101828; color:#fff; padding:10px 16px; border-radius:20px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:9; max-width:90%; }
+.toast.show { opacity:1; }
+.hidden { display:none !important; }
+.place { border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--bg); }
+.place .row { margin-bottom:8px; }
+.place .seg { margin-bottom:8px; background:var(--card); }
+.place .seg button { padding:8px 4px; }
+.row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.place input, .place select { background:var(--card); }
+.place .cascade select { margin-bottom:8px; }
+.mapv { position:fixed; inset:0; z-index:25; background:var(--bg); display:flex; flex-direction:column; }
+.mapv .top { display:flex; align-items:center; gap:8px; padding:8px 12px; padding-top:calc(8px + env(safe-area-inset-top)); background:var(--main); color:#fff; }
+.mapv .top b { flex:1; font-size:15px; }
+.mapv .top button { border:0; background:rgba(255,255,255,.2); color:#fff; border-radius:8px; padding:6px 12px; font-size:14px; }
+#mapPickHost { flex:1; min-height:0; display:flex; flex-direction:column; }
+#pageMap { height:100%; display:flex; flex-direction:column; }
+main#main.map-mode { padding:0; max-width:none; overflow:hidden; }
+#mapBody { flex:1; min-height:0; display:flex; flex-direction:column; position:relative; }
+.mb-search { position:relative; padding:8px 10px 0; }
+.mb-search input { padding:9px 10px; }
+.mb-res { position:absolute; left:10px; right:10px; top:100%; z-index:8; max-height:55vh; overflow:auto; background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.28); }
+.mb-res .g { padding:5px 12px; font-size:12px; color:var(--sub); background:var(--bg); position:sticky; top:0; }
+.mb-res .r { padding:8px 12px; border-bottom:1px solid var(--line); font-size:14px; }
+.mb-res .r:last-child { border-bottom:0; }
+.mb-res .r:active { background:var(--bg); }
+.mb-res .r small { display:block; color:var(--sub); font-size:12px; }
+#mapBody .tabs { display:flex; gap:6px; padding:8px 10px 0; overflow-x:auto; flex:none; }
+#mapBody .tabs button { flex:none; border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:8px; padding:6px 12px; font-size:14px; }
+#mapBody .tabs button small { opacity:.65; margin-left:2px; }
+#mapBody .tabs button.on { background:var(--main); color:#fff; border-color:var(--main); }
+#mapBody .mvinfo { padding:6px 12px; font-size:12px; color:var(--sub); flex:none; }
+#mapBody .mvinfo b { color:var(--text); }
+#mvView { position:relative; flex:1; min-height:0; overflow:hidden; background:#0f1520; touch-action:none; cursor:grab; user-select:none; -webkit-user-select:none; }
+#mvStage { position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform; }
+#mvStage img { display:block; max-width:none; -webkit-user-drag:none; pointer-events:none; }
+#mvMarks { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.mk { position:absolute; box-sizing:border-box; border:2px solid #ffb020; background:rgba(255,176,32,.2); border-radius:3px; overflow:hidden; display:flex; align-items:center; justify-content:center; text-align:center; color:#fff; font-size:12px; font-weight:600; line-height:1.15; text-shadow:0 0 3px #000,0 0 3px #000,0 0 2px #000; }
+.mk span { max-width:100%; max-height:100%; overflow:hidden; padding:1px 2px; word-break:break-all; }
+.mk.v span { writing-mode:vertical-rl; }
+.mk.nolabel span { display:none; }
+.mk.hot { border-color:#ff3c3c; background:rgba(255,60,60,.4); z-index:2; }
+.mk.sel { border-color:#5b8cff; background:rgba(36,99,235,.45); z-index:3; }
+.mv-tag { position:absolute; z-index:4; pointer-events:none; background:rgba(16,24,40,.92); color:#fff; border-radius:6px; padding:2px 8px; font-size:13px; white-space:nowrap; max-width:80%; overflow:hidden; text-overflow:ellipsis; }
+.mv-ctl { position:absolute; right:10px; bottom:12px; display:flex; flex-direction:column; gap:6px; z-index:5; }
+.mv-ctl button { width:42px; height:42px; border:0; border-radius:10px; background:rgba(20,26,38,.85); color:#fff; font-size:20px; }
+.mv-ctl button.off { opacity:.45; }
+.mb-sheet { flex:none; max-height:34%; overflow:auto; background:var(--card); border-top:1px solid var(--line); padding:10px 12px; font-size:14px; }
+.mb-sheet .nm { font-size:16px; font-weight:600; }
+.mb-sheet .pth { font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--sub); font-size:13px; }
+.mb-sheet .hint { margin-top:2px; }
+.mb-sheet .chips2 span { display:inline-block; border:1px solid var(--line); border-radius:12px; padding:1px 8px; margin:4px 4px 0 0; font-size:12px; }
+.mb-sheet .btns { display:flex; gap:8px; margin-top:8px; }
+.mb-sheet .btns .btn { flex:1; padding:9px; font-size:14px; }
+#mapBody .foot { flex:none; display:flex; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); }
+#mapBody .foot .btn { padding:10px 14px; font-size:15px; }
+#mapBody .foot .btn[disabled] { opacity:.4; }
+#mapBody .foot .grow { flex:1; }
+.more { margin-top:12px; border-top:1px dashed var(--line); padding-top:10px; }
+.more summary { color:var(--main); font-size:14px; padding:6px 0; }
+.withscan { display:flex; gap:8px; }
+.withscan input { flex:1; min-width:0; }
+.scanbtn { flex:none; border:1px solid var(--main); background:none; color:var(--main); border-radius:8px; padding:0 14px; font-size:15px; }
+.scan { position:fixed; inset:0; z-index:30; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#fff; }
+.scan video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.scan .frame { position:relative; width:72vw; max-width:360px; height:36vw; max-height:200px; border:3px solid #4c8dff; border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
+.scan p, .scan .btn { position:relative; margin:0; }
+.scan .btn { background:#fff; color:#111; }
+.mask { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
+.sheet { background:var(--card); width:100%; max-width:640px; border-radius:16px 16px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); }
+.sheet h2 { margin:0 0 4px; font-size:17px; }
+.sheet p { margin:0 0 14px; color:var(--sub); font-size:14px; }
+.sheet .btn { margin-top:8px; }
+/* ---- 紧凑布局：覆盖前面的尺寸 ---- */
+body { font-size:14px; line-height:1.3; padding-bottom:calc(56px + env(safe-area-inset-bottom)); }
+header { padding:7px 12px; padding-top:calc(7px + env(safe-area-inset-top)); }
+header h1 { font-size:16px; }
+header span { font-size:12px; }
+main { padding:8px 10px; }
+.seg { margin-bottom:8px; border-radius:8px; }
+.seg button { padding:7px 4px; font-size:14px; }
+.card { padding:8px 10px; margin-bottom:8px; border-radius:10px; }
+#fields { display:grid; grid-template-columns:1fr 1fr; column-gap:8px; }
+#fields .f { grid-column:span 2; min-width:0; }
+#fields .f.half { grid-column:span 1; }
+#fields details.more { grid-column:span 2; display:grid; grid-template-columns:1fr 1fr; column-gap:8px; margin-top:6px; padding-top:4px; }
+details.more > summary { grid-column:span 2; font-size:13px; padding:4px 0; }
+label { font-size:12px; margin:6px 0 2px; }
+input, select, textarea { font-size:14px; padding:5px 8px; border-radius:6px; min-height:32px; }
+textarea { min-height:40px; }
+.hint { font-size:11px; margin-top:2px; }
+.btn { padding:8px 12px; font-size:15px; border-radius:8px; }
+.bar { padding:6px 10px calc(6px + env(safe-area-inset-bottom)); gap:6px; }
+.place { padding:6px; border-radius:8px; }
+.place .row { margin-bottom:6px; gap:6px; }
+.place .seg { margin-bottom:6px; }
+.place .seg button { padding:5px 4px; }
+.row3 { gap:6px; }
+.withscan { gap:6px; }
+.scanbtn { padding:0 10px; font-size:14px; border-radius:6px; }
+.editbar { padding:5px 10px; margin-bottom:8px; font-size:13px; }
+.ptiles { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; align-items:flex-start; }
+#xphotos { display:contents; }
+.ptile { width:64px; text-align:center; }
+.plabel { font-size:11px; color:var(--sub); white-space:nowrap; margin-bottom:2px; }
+.ptile .pv { width:64px; height:64px; border-radius:8px; background:var(--bg); border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:11px; overflow:hidden; }
+.ptile .pv img { width:100%; height:100%; object-fit:cover; cursor:zoom-in; }
+.pbtn { margin-top:3px; border:1px solid var(--main); background:none; color:var(--main); border-radius:6px; font-size:12px; padding:2px 0; width:100%; }
+.lb { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.92); display:flex; align-items:center; justify-content:center; }
+.lb img { max-width:100%; max-height:100%; object-fit:contain; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.chip { border:1px solid var(--line); background:var(--bg); color:var(--text); border-radius:14px; padding:4px 12px; font-size:12px; }
+.stockScanBar { position:relative; z-index:1; display:flex; align-items:center; gap:8px; background:rgba(0,0,0,.55); border-radius:10px; padding:8px 10px; width:calc(100% - 32px); max-width:360px; }
+.stockScanBar label { margin:0; color:#fff; font-size:12px; white-space:nowrap; }
+.stockScanBar input { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff; }
+#list { padding:2px 10px; }
+.item { padding:4px 0; gap:8px; }
+.item img, .item .ph { width:34px; height:34px; border-radius:5px; }
+.item .t .n { font-size:13px; }
+.item .t .s { font-size:11px; }
+.dphotos img { width:64px; height:64px; cursor:zoom-in; }
+.dphotos { gap:6px; margin:6px 0; }
+.dgrid { font-size:13px; gap:2px 10px; }
+.sheet { padding:12px 12px calc(12px + env(safe-area-inset-bottom)); }
+.dbtns .btn { padding:8px 4px; font-size:14px; }
+.toast { bottom:calc(64px + env(safe-area-inset-bottom)); font-size:13px; padding:8px 14px; }
+
+/* ---- 名称写在格子里 ---- */
+#fields .f { margin-bottom:6px; }
+.fl { display:flex; gap:6px; }
+.fl .box { position:relative; flex:1; min-width:0; }
+.fl input, .fl select, .fl textarea { height:40px; min-height:0; padding:15px 8px 3px; }
+.fl textarea { height:58px; padding-top:17px; }
+.fl select { padding-right:20px; }
+.fl label { position:absolute; left:9px; top:10px; margin:0; font-size:14px; color:var(--sub); pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:calc(100% - 24px); transition:top .1s, font-size .1s; }
+.fl .box.filled label, .fl .box:focus-within label { top:2px; font-size:10px; }
+.fl label b { color:var(--danger); }
+.fl label .tip { opacity:.7; }
+.fl label .tip::before { content:" · "; }
+.fl input::placeholder, .fl textarea::placeholder { color:transparent; }
+.fl .box:focus-within input::placeholder { color:var(--sub); opacity:.7; }
+.scanbtn { height:40px; }
+.ptitle { font-size:11px; color:var(--sub); margin-bottom:4px; }
+.ptitle b { color:var(--danger); }
+header .hr { display:flex; align-items:center; gap:8px; }
+#langBtn { background:rgba(255,255,255,.2); color:#fff; border:1px solid rgba(255,255,255,.65); border-radius:12px; padding:2px 10px; font-size:12px; }
+
+/* ---- 操作按钮放顶部；底部留空，避开 Netlify 免费版右下角的浮标 ---- */
+.top { position:sticky; top:0; z-index:6; }
+.top header { position:static; }
+.top .bar { position:static; border-top:0; border-bottom:1px solid var(--line); padding:6px 10px; }
+body { padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
+.toast { bottom:auto; top:calc(104px + env(safe-area-inset-top)); }
+.sheet { padding-bottom:calc(80px + env(safe-area-inset-bottom)); }
+.scan .btn { margin-bottom:60px; }
+
+/* ---- 整体布局：顶部固定，中间表单框内滚动，底部是按钮，再往下留一条空白（避开 Netlify 浮标）---- */
+html, body { height:100%; }
+body { display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; padding:0; }
+.top { position:static; flex:none; }
+.top #tabs { margin:6px 10px 0; }
+main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding:8px 10px; }
+.bar { position:static; flex:none; border-top:1px solid var(--line); border-bottom:0; padding:6px 10px; width:100%; max-width:640px; margin:0 auto; }
+.bar #save { flex:1.6; }
+.spacer { flex:none; height:calc(60px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); }
+.toast { top:calc(104px + env(safe-area-inset-top)); }
+</style>
+</head>
+<body>
+<div class="top"><header><h1>物品采集</h1><div class="hr"><span id="count"></span><button id="langBtn" type="button">Tiếng Việt</button></div></header>
+  <div class="seg" id="tabs">
+    <button data-tab="new" class="on">录入</button>
+    <button data-tab="list">已记录</button>
+    <button data-tab="stock">盘点</button>
+    <button data-tab="map">地图</button>
+  </div>
+</div>
+<main id="main">
+<div class="editbar hidden" id="insecureBar" style="margin-bottom:12px"><span>⚠️ 当前网址不是 https，拍照扫码和「分享/保存」可能用不了；请用 https 网址打开（比如部署到 Netlify 后给你的网址），或改用蓝牙扫码枪+手动输入</span></div>
+
+  <section id="pageNew">
+    <div class="editbar hidden" id="editBar"><span>正在修改：<b id="editName" data-raw></b></span><button class="btn ghost" id="editCancel" type="button">取消</button></div>
+    <div class="seg" id="types"></div>
+    <div class="card">
+      <div id="fields"></div>
+      <div class="ptiles">
+        <div class="ptile">
+          <div class="plabel">照片 <b id="photoStar">*</b></div>
+          <div class="pv" id="pv">未拍照</div>
+          <button class="pbtn" id="shoot" type="button">拍照</button>
+        </div>
+        <div id="xphotos"></div>
+      </div>
+      <div class="hint" id="photoHint"></div>
+      <input type="file" id="cam" accept="image/*" capture="environment" class="hidden">
+      <input type="file" id="xcam" accept="image/*" capture="environment" class="hidden">
+      <select id="keepMode">
+        <option value="all">保存后：同款连续录入（只改编号、拍照）</option>
+        <option value="common">保存后：只保留类别、位置等常用项</option>
+        <option value="none">保存后：全部清空</option>
+      </select>
+    </div>
+  </section>
+
+  <section id="pageList" class="hidden">
+    <div class="selbar">
+      <button class="btn ghost" id="selAll" type="button">全选</button>
+      <span id="selInfo">不选则只导出「待导出」的；勾选后可重复导出已导出的</span>
+    </div>
+    <div class="card" id="list"></div>
+    <div class="row">
+      <button class="btn danger" id="clearDone" type="button">删除已导出的</button>
+    </div>
+  </section>
+
+  <section id="pageStock" class="hidden">
+    <div class="card">
+      <div id="stockPlaceWrap"></div>
+      <div class="chips" id="stockChips"></div>
+      <label style="margin-top:12px">条码</label>
+      <div class="withscan">
+        <input id="stockCode" placeholder="扫码枪扫描，或手动输入后回车" autocomplete="off">
+        <button class="scanbtn" id="stockScanOpen" type="button">拍照扫码</button>
+      </div>
+    </div>
+    <div class="selbar"><span id="stockInfo">还没有记录</span></div>
+    <div class="card" id="stockList"></div>
+  </section>
+
+  <section id="pageMap" class="hidden">
+    <div id="mapBody">
+      <div class="mb-search"><input id="mvQ" type="search" placeholder="搜索位置或名称，如 FHT14、仓库" autocomplete="off" enterkeyhint="search"><div class="mb-res hidden" id="mvRes"></div></div>
+      <div class="tabs" id="mvTabs"></div>
+      <div class="mvinfo" id="mvInfo"></div>
+      <div id="mvView">
+        <div id="mvStage"><img id="mvImg" alt="" draggable="false"></div>
+        <div id="mvMarks"></div>
+        <div class="mv-tag hidden" id="mvTag"></div>
+        <div class="mv-ctl"><button type="button" id="mvIn">＋</button><button type="button" id="mvOut">－</button><button type="button" id="mvFit">⤢</button><button type="button" id="mvLab">名</button></div>
+      </div>
+      <div class="mb-sheet hidden" id="mvSheet"></div>
+      <div class="foot hidden" id="mvFoot"><span class="grow"></span><button class="btn" type="button" id="mvPick" disabled>选这个位置</button></div>
+    </div>
+  </section>
+</main>
+<div class="bar">
+  <button class="btn" id="save" type="button">保存，录下一个</button>
+  <button class="btn ghost" id="clearForm" type="button">清空</button>
+  <button class="btn ghost" id="export" type="button">导出文件</button>
+  <button class="btn hidden" id="stockScanBtn" type="button">开始扫码</button>
+  <button class="btn ghost hidden" id="stockExport" type="button">导出Excel</button>
+</div>
+<div class="spacer"></div>
+
+<div class="lb hidden" id="lb"><img id="lbImg" alt=""></div>
+<div class="scan hidden" id="scan">
+  <video id="scanVideo" playsinline muted></video>
+  <div class="frame"></div>
+  <p>把条码或二维码放进框里，自动识别</p>
+  <button class="btn" id="scanCancel" type="button">取消</button>
+</div>
+<div class="scan hidden" id="stockScan">
+  <video id="stockVideo" playsinline muted></video>
+  <div class="frame"></div>
+  <div class="stockScanBar">
+    <label>位置</label>
+    <span id="stockScanPlaceView">未填位置</span>
+  </div>
+  <p id="stockScanMsg">对准条码，可以连续扫，不用逐个确认</p>
+  <button class="btn" id="stockScanClose" type="button">完成</button>
+</div>
+<div class="mask hidden" id="detail">
+  <div class="sheet dsheet">
+    <div class="dhead"><h2 id="dTitle"></h2><button class="btn ghost" id="dClose" type="button" style="padding:6px 12px;font-size:14px">关闭</button></div>
+    <div id="dBody"></div>
+    <div class="dbtns">
+      <button class="btn" id="dEdit" type="button">编辑</button>
+      <button class="btn ghost" id="dCopy" type="button">复制新增</button>
+      <button class="btn danger" id="dDel" type="button">删除</button>
+    </div>
+  </div>
+</div>
+<div class="mask hidden" id="mask">
+  <div class="sheet">
+    <h2>导出文件已生成</h2>
+    <p id="sheetInfo"></p>
+    <p id="wxTip" class="hidden" style="color:var(--danger)">你在微信内置浏览器里，它不支持下载和分享。请点右上角「···」→「在浏览器打开」（iPhone 选 Safari，安卓选 Chrome 等），在那里导出。</p>
+    <button class="btn block" id="doShare" type="button">分享（发到微信等）</button>
+    <button class="btn ghost block" id="doSave" type="button">保存到手机</button>
+    <button class="btn ghost block" id="doCancel" type="button" style="border-color:var(--line);color:var(--sub)">取消</button>
+  </div>
+</div>
+<div class="mapv hidden" id="mapView">
+  <div class="top"><b>位置地图</b><button type="button" id="mvClose">关闭</button></div>
+  <div id="mapPickHost"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="locations.js"></script>
+<script src="marks.js"></script>
+<script>
+"use strict";
+
+// ---- 字段定义：表头与电脑端导入模板一致，导入时能直接识别 ----------------------------
+// 类别 / 单位的可选项与电脑端「数据标准化」的预设一致；电脑端加了新类别，这里也要同步加
+const ITEM_CATEGORIES = ["治具", "五金", "电气", "气动", "ESD", "工具", "量具", "耗材", "配件", "劳保", "包材", "其他"];
+const UNITS = ["件", "个", "套", "对", "双", "把", "根", "条", "张", "台", "盒", "包", "卷", "米", "箱", "瓶"];
+const EQUIPMENT_CATEGORIES = ["设备", "测试", "其他"];
+const FIXTURE_CATEGORIES = ["治具", "模具", "检具", "工装", "其他"];
+const TEST_CATEGORY = "测试";          // 选了这个类别，必须填校准信息
+
+const TYPES = {
+  // 字段顺序、表头与电脑端导入模板一致；more = 放进「更多信息」折叠区；when = 满足条件才显示
+  // fields 的顺序 = 导出表格的列顺序（与导入模板一致）；layout = 录入页上的显示顺序，把相关的项放在一起
+  item: { label: "物品",
+    layout: ["物品编号", "物品名称", "规格", "类别", "单位", "初始库存", "低库存提醒", "库位", "状态", "备注", "越南文名称"],
+    fields: [
+    { k: "物品编号", hint: "留空自动生成" },
+    { k: "物品名称", req: true },
+    { k: "越南文名称", more: true },
+    { k: "规格" },
+    { k: "类别", opts: ITEM_CATEGORIES, req: true, keep: true },
+    { k: "单位", opts: UNITS, keep: true },
+    { k: "低库存提醒", type: "number", hint: "0=不提醒" },
+    { k: "库位", place: "shelf", keep: true, hint: "填了初始库存时必填" },
+    { k: "初始库存", type: "number" },
+    { k: "状态", opts: ["正常", "损坏", "停用"], keep: true },
+    { k: "备注", area: true },
+  ]},
+  fixture: { label: "治具",
+    layout: ["治具编号", "治具名称", "型号", "类别", "位置", "状态", "越南文名称", "厂商", "贴标位置", "备注"],
+    fields: [
+    // 治具只留常用的几项在前面，其余收进「更多信息」
+    { k: "治具编号", hint: "留空自动生成" },
+    { k: "治具名称", req: true },
+    { k: "越南文名称", more: true },
+    { k: "型号", req: true },
+    { k: "厂商", more: true },
+    { k: "类别", opts: FIXTURE_CATEGORIES, req: true, keep: true },
+    { k: "位置", place: "shelf", req: true, keep: true },
+    { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], keep: true },
+    { k: "贴标位置", more: true },
+    { k: "备注", area: true, more: true },
+  ]},
+  equipment: { label: "设备",
+    // 各种编号放在最前面；类别后面紧跟它触发的校准项；位置、状态、状况放一起
+    layout: ["设备编号", "资产编号", "出厂编号", "标签编号", "设备名称", "型号", "厂商", "类别", "校准时间", "下次校准时间", "校验人",
+             "位置", "状态", "设备状况", "缺少配件", "备注", "越南文名称", "设备功率", "设备电压", "设备重量", "出厂时间", "使用年限", "贴标位置"],
+    fields: [
+    { k: "设备编号", hint: "留空自动生成" },
+    { k: "设备名称", req: true },
+    { k: "越南文名称", more: true },
+    { k: "型号", req: true },
+    { k: "厂商" },
+    { k: "资产编号" },
+    { k: "类别", opts: EQUIPMENT_CATEGORIES, req: true, keep: true },
+    { k: "位置", place: "line", req: true, keep: true },
+    { k: "状态", opts: ["在库", "使用中", "待维修", "维修中", "报废", "损坏", "停用"], keep: true },
+    { k: "出厂编号", hint: "铭牌序列号，不可重复" },
+    { k: "设备功率", more: true, ph: "带单位，如 1.5kW" },
+    { k: "设备电压", more: true, ph: "带单位，如 220V" },
+    { k: "设备重量", more: true, ph: "带单位，如 30kg" },
+    { k: "出厂时间", type: "date", more: true },
+    { k: "使用年限", more: true, ph: "如 5年" },
+    { k: "校准时间", type: "date", when: { k: "类别", v: TEST_CATEGORY } },
+    { k: "下次校准时间", type: "date", when: { k: "类别", v: TEST_CATEGORY }, hint: "须晚于校准时间" },
+    { k: "校验人", when: { k: "类别", v: TEST_CATEGORY } },
+    { k: "设备状况", opts: ["正常", "故障", "缺配件"], keep: true },
+    { k: "缺少配件", when: { k: "设备状况", v: "缺配件" } },
+    { k: "贴标位置", more: true },
+    { k: "标签编号", more: true, hint: "手持终端绑定用，可不填" },
+    { k: "备注", area: true },
+  ], extraPhotos: ["设备标签照片", "资产标签照片", "铭牌照片"] },      // 只在设备详情里显示，选填
+};
+const PHOTO_COL = "照片";
+// 旧版草稿里设备标签照片叫「标签照片」，读取时当作「设备标签照片」
+const xget = (r, k) => r.extra && (r.extra[k] || (k === "设备标签照片" ? r.extra["标签照片"] : undefined));
+
+// ---- 位置：统一写成  栋-楼层-产线  或  栋-楼层-区-层-格，与仓库系统的位置库写法一致 ----------
+//   货架：V3-2F-M-3-1（3栋 2楼 M区 3层 1格）      产线：V3-2F-FHA-01（3栋 2楼 产线 FHA-01）
+const BUILDINGS = [1, 2, 3, 4, 5, 6];
+const FLOORS = [1, 2, 3, 4, 5, 6];
+const ZONES = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const opt = (v, label, cur) => `<option value="${v}"${String(v) === String(cur) ? " selected" : ""}>${label}</option>`;
+
+// ---- 位置库：电脑端导出的位置树（locations.js，[编号, 短写法, 名称, 上级编号, 深度]），一级一级选 ------------
+// 树是空的（还没导出过）就退回上面的「栋/层/区/排/格」手填。每一级最后一项是「＋新增」，加的位置存在本机，
+// 记录里照常写成短写法（如 V1-1F-B-2-02）；电脑端导入后，不在库里的会进「位置对照」处理。
+let TREE = null;
+const unpad = p => String(p || "").replace(/(?<=-)0+(\d)/g, "$1");
+const loadExtra = () => { try { return JSON.parse(localStorage.getItem("libExtra") || "[]"); } catch { return []; } };
+function buildTree() {
+  const nodes = (window.LOCATIONS || []).map(r => ({ code: r[0], path: r[1], name: r[2], parent_code: r[3], depth: r[4], name_vi: r[5] || "" }));
+  const codes = new Set(nodes.map(n => n.code)), paths = new Set(nodes.map(n => n.path));
+  for (const n of loadExtra()) {            // 手机上自己加的；电脑端位置库里已经有同名的就用库里的
+    if (paths.has(n.path) || codes.has(n.code) || !codes.has(n.parent_code)) continue;
+    nodes.push(n); codes.add(n.code); paths.add(n.path);
+  }
+  TREE = null;
+  if (!nodes.length) return;
+  const byCode = new Map(nodes.map(n => [n.code, n]));
+  const byPath = new Map(nodes.map(n => [n.path, n]));
+  const byUnpadded = new Map(nodes.map(n => [unpad(n.path), n]));
+  const children = new Map();
+  for (const n of nodes) {
+    const parent = byCode.has(n.parent_code) ? n.parent_code : "";
+    if (!children.has(parent)) children.set(parent, []);
+    children.get(parent).push(n);
+  }
+  for (const list of children.values()) list.sort((x, y) => String(x.path).localeCompare(String(y.path), undefined, { numeric: true }));
+  const roots = children.get("") || [];      // 最上面只有一个厂区（AVC(VN)）就不用选，从下一级开始
+  const start = roots.length === 1 && roots[0].depth === 1 && children.has(roots[0].code) ? roots[0].code : "";
+  TREE = { byCode, byPath, byUnpadded, children, start };
+}
+buildTree();
+const findNode = v => TREE ? TREE.byPath.get(v) || TREE.byUnpadded.get(unpad(v)) : null;
+// 跟电脑端位置库同一套缩写：1栋→V1，2楼→2F，B区→B，2排→2，06格→06
+function compactSegment(text) {
+  text = text.trim();
+  let m = /^(\d+)\s*栋$/.exec(text); if (m) return "V" + m[1];
+  m = /^([A-Za-z]?\d+)\s*楼$/.exec(text); if (m) return m[1] + "F";
+  m = /^(.+?)\s*(?:区|排|格|柜|层|架|位)$/.exec(text);
+  return m ? m[1].trim() : text;
+}
+function libLabel(node, parent) {
+  const short = parent && node.path.startsWith(parent.path + "-") ? node.path.slice(parent.path.length + 1) : node.path;
+  const name = lang === "vi" ? (node.name_vi || node.name) : node.name;      // 越南文名称（电脑端位置库里翻译好的）
+  return name && name !== short ? `${short} · ${name}` : short;
+}
+// 从最上面一直到当前位置，每一级一个下拉；选到楼层或下面还有东西时再多出一级
+function libCascade(pre, path) {
+  const node = findNode(path), chain = [];
+  for (let n = node; n && n.code !== TREE.start && !chain.includes(n); n = TREE.byCode.get(n.parent_code)) chain.unshift(n);
+  const parts = [];
+  let parent = TREE.start;
+  for (let level = 0; level < 8; level++) {
+    const parentNode = TREE.byCode.get(parent), chosen = chain[level];
+    const kids = TREE.children.get(parent) || [];
+    parts.push(`<select ${level === 0 ? `id="${pre}_b" ` : ""}data-lib-level data-parent="${safe(parent)}">
+      <option value="">${level === 0 ? "选楼栋" : "（不再细分）"}</option>
+      ${kids.map(k => `<option data-raw value="${safe(k.code)}"${k === chosen ? " selected" : ""}>${safe(libLabel(k, parentNode))}</option>`).join("")}
+      ${parent ? `<option value="__new__">＋ 新增…</option>` : ""}</select>`);
+    if (!chosen) break;
+    if (!(TREE.children.get(chosen.code) || []).length && !/^\d+F$/i.test(chosen.path.split("-").pop())) break;   // 楼层下面可以加产线 / 货架
+    parent = chosen.code;
+  }
+  return `${parts.join("")}<input type="hidden" id="${pre}_lib" value="${safe(node && node.code !== TREE.start ? node.path : "")}">`;   // 选到哪一级就记哪一级，够不够由 placeValue 判断
+}
+function libPlaceHtml(f, s, pre) {
+  let cur = s.lib;
+  if (cur === undefined && s.b) {           // 旧版存的「栋/层/区/排/格」：换成新的短写法
+    const tail = s.mode === "shelf" ? [s.z, +s.r, +s.l].join("-") : String(s.n || "").toUpperCase();
+    cur = `V${s.b}-${s.f}F-${tail}`;
+  }
+  const node = findNode(cur || "");
+  return `<div class="place" id="${pre}_place">
+    <div class="ptitle">${f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? ` · ${f.hint}` : ""}</div>
+    <div class="cascade" id="${pre}_casc">${libCascade(pre, node ? node.path : "")}</div>
+    ${MAPS.length ? `<button type="button" class="btn ghost block" data-map-open="${pre}" style="padding:8px;margin:0 0 6px">在地图上看 / 选位置</button>` : ""}
+    <div class="hint" id="${pre}_view"></div>
+  </div>`;
+}
+// 「＋新增」：加在 parent 下面，返回新节点（取消 / 写法不对返回 null）
+function addLibNode(parent) {
+  const name = (prompt(T(`加在「${parent.path}」下面。名称（例如 3排、06格、FHT15）`)) || "").trim();
+  if (!name) return null;
+  if (name.includes("/")) { toast("名称不能含「/」"); return null; }
+  const short = compactSegment(name), path = parent.depth === 1 ? short : `${parent.path}-${short}`;
+  const dup = TREE.byPath.get(path);
+  if (dup) return dup;
+  let serial = 1;
+  while (TREE.byCode.has(`${parent.code}${String(serial).padStart(2, "0")}`)) serial++;
+  const node = { code: `${parent.code}${String(serial).padStart(2, "0")}`, path, name, parent_code: parent.code, depth: parent.depth + 1 };
+  try { localStorage.setItem("libExtra", JSON.stringify([...loadExtra(), node])); } catch {}
+  buildTree();
+  return findNode(path);
+}
+// ---- 地图模块（marks.js 由电脑端导出：楼层图 + 标注方块）-------------------------------------------
+// 一个地图组件（#mapBody）两处用：「地图」标签页里随便看；录入 / 盘点选位置时放进全屏的 #mapView 里点选。
+// 拖动、双指缩放、双击放大都是自己实现的（图和方块用同一套坐标），方块上直接写名称，可以搜索位置或名称。
+const MAPS = window.MAPS || [];
+const MARKS = (window.MAP_MARKS || []).map(r => ({ id: r[0], map: r[1], loc: r[2], label: r[3], label_vi: r[4], x: r[5], y: r[6], w: r[7], h: r[8] }));
+const markName = k => (lang === "vi" ? (k.label_vi || k.label) : (k.label || k.label_vi)) || "";
+const markLabel = k => markName(k) || k.loc.split("-").pop();
+const segs = s => String(s || "").toUpperCase().split(/[-/／\s]+/).filter(Boolean).map(p => /^\d+$/.test(p) ? String(+p) : p);
+const foldText = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+// 位置属于某个标注 = 位置的各段以标注各段开头，取最细的（跟电脑端一样）
+function marksFor(place) {
+  const mine = segs(place);
+  let best = 0, found = [];
+  for (const k of MARKS) {
+    const m = segs(k.loc);
+    if (!m.length || m.length > mine.length || !m.every((x, i) => mine[i] === x)) continue;
+    if (m.length > best) { best = m.length; found = []; }
+    if (m.length === best) found.push(k);
+  }
+  return found;
+}
+const MAX_ZOOM = 16;                                   // 最多放大到「整张图刚好放下」的多少倍
+let MV = null;                                         // 地图状态：楼层、缩放 / 平移、选中的方块……
+const mapVisible = () => !!MV && $("mvView").clientWidth > 0;
+
+// 打开地图。mode "browse"：「地图」标签页里看；"pick"：录入 / 盘点里选位置（pre 是那套选择器的前缀）
+function enterMap(mode, pre) {
+  if (!MAPS.length) { $("mvInfo").innerHTML = "<span>还没有地图数据（请先在电脑端导出位置库和地图）</span>"; return; }
+  const cur = mode === "pick" && $(`${pre}_lib`) ? $(`${pre}_lib`).value : "";
+  const found = cur ? marksFor(cur) : [];
+  let last = ""; try { last = localStorage.getItem("mapLast") || ""; } catch {}
+  if (!MV) MV = { s: 1, tx: 0, ty: 0, iw: 0, ih: 0, fit: 1, labels: true, map: MAPS.find(m => m[0] === last) ? last : MAPS[0][0], nodes: new Map() };
+  Object.assign(MV, { mode, pre, cur, found, sel: null, place: "", lastTap: null });
+  if (found[0]) MV.map = found[0].map;
+  const pick = mode === "pick";
+  (pick ? $("mapPickHost") : $("pageMap")).appendChild($("mapBody"));
+  $("mvFoot").classList.toggle("hidden", !pick);
+  $("mvPick").disabled = true;
+  $("mvQ").value = ""; hideResults();
+  if (pick) $("mapView").classList.remove("hidden");
+  requestAnimationFrame(() => paintFloor(true));      // 等它有了尺寸再量
+}
+function closeMap() {
+  $("mapView").classList.add("hidden");
+  $("pageMap").appendChild($("mapBody"));
+  if (MV) MV.mode = "browse";
+}
+function renderTabs() {
+  $("mvTabs").innerHTML = MAPS.map(m => `<button type="button" data-mp="${safe(m[0])}" class="${m[0] === MV.map ? "on" : ""}">${safe(m[1])} <small>${MARKS.filter(k => k.map === m[0]).length}</small></button>`).join("");
+}
+function renderInfo() {
+  const n = MARKS.filter(k => k.map === MV.map).length;
+  let html;
+  if (MV.mode !== "pick") {
+    html = `<span>本层</span> <b>${n}</b> <span>个标注</span> · <span>点方块看位置，双指缩放，双击放大，拖动移动</span>`;
+    if (window.LOCATIONS_AT) html += ` · <span>位置库更新于</span> <b data-raw>${safe(window.LOCATIONS_AT)}</b>`;
+  } else if (MV.sel) {
+    html = `<span>已选：</span><b data-raw>${safe(MV.sel.loc)}</b>${markName(MV.sel) ? ` <span data-raw>${safe(markName(MV.sel))}</span>` : ""}`;
+  } else if (MV.cur && MV.found.length) {
+    html = `<b data-raw>${safe(MV.cur)}</b> <span>在图上的红框处</span>${segs(MV.found[0].loc).join("-") !== segs(MV.cur).join("-") ? ` <span>（地图只标到第三级，红框是它所在的</span> <b data-raw>${safe(MV.found[0].loc)}</b>${markName(MV.found[0]) ? ` <span data-raw>${safe(markName(MV.found[0]))}</span>` : ""}<span>）</span>` : ""}`;
+  } else if (MV.cur) html = `<b data-raw>${safe(MV.cur)}</b> <span>还没有在地图上标注</span>`;
+  else html = "<span>点图上的方块选位置</span>";
+  $("mvInfo").innerHTML = html;
+}
+// 画当前这一层：换图、建方块、适应窗口；focus 时对准选中的（或当前位置所在的）方块
+function paintFloor(focus) {
+  if (!MV) return;
+  const map = MAPS.find(m => m[0] === MV.map) || MAPS[0];
+  MV.map = map[0];
+  try { localStorage.setItem("mapLast", MV.map); } catch {}
+  renderTabs(); renderInfo(); renderSheet();
+  const img = $("mvImg");
+  const build = () => {
+    if (!MV || MV.map !== map[0]) return;
+    MV.iw = img.naturalWidth; MV.ih = img.naturalHeight;
+    buildMarks(); fitView();
+    const target = focus ? (MV.sel && MV.sel.map === MV.map ? MV.sel : MV.found.find(k => k.map === MV.map)) : null;
+    if (target) zoomToMark(target);
+    layout();
+  };
+  if (img.dataset.src !== map[2]) { img.dataset.src = map[2]; img.src = map[2]; }
+  if (img.complete && img.naturalWidth) build(); else img.onload = build;
+}
+function buildMarks() {
+  const layer = $("mvMarks");
+  layer.innerHTML = ""; MV.nodes = new Map();
+  for (const k of MARKS) {
+    if (k.map !== MV.map) continue;
+    const d = document.createElement("div"), s = document.createElement("span");
+    s.setAttribute("data-raw", ""); s.textContent = markLabel(k); d.appendChild(s);
+    layer.appendChild(d); MV.nodes.set(k, d);
+  }
+  refreshMarkClasses();
+}
+function refreshMarkClasses() {
+  for (const [k, d] of MV.nodes) d.className = `mk${MV.found.includes(k) ? " hot" : ""}${MV.sel === k ? " sel" : ""}${d.classList.contains("v") ? " v" : ""}${d.classList.contains("nolabel") ? " nolabel" : ""}`;
+}
+// 视图 ---------------------------------------------------------------------------------------
+function fitView() {
+  const view = $("mvView"), vw = view.clientWidth, vh = view.clientHeight;
+  if (!vw || !vh || !MV.iw) return;
+  MV.fit = Math.min(vw / MV.iw, vh / MV.ih);
+  MV.s = MV.fit;
+  MV.tx = (vw - MV.iw * MV.s) / 2; MV.ty = (vh - MV.ih * MV.s) / 2;
+}
+function clampView() {
+  const view = $("mvView"), vw = view.clientWidth, vh = view.clientHeight;
+  MV.s = Math.min(Math.max(MV.s, MV.fit * 0.9), MV.fit * MAX_ZOOM);
+  const w = MV.iw * MV.s, h = MV.ih * MV.s;
+  MV.tx = w <= vw ? (vw - w) / 2 : Math.min(0, Math.max(vw - w, MV.tx));
+  MV.ty = h <= vh ? (vh - h) / 2 : Math.min(0, Math.max(vh - h, MV.ty));
+}
+let layoutQueued = false;
+function layout() {
+  if (layoutQueued) return;
+  layoutQueued = true;
+  requestAnimationFrame(() => { layoutQueued = false; drawView(); });
+}
+const markBox = k => ({ x: MV.tx + k.x * MV.iw * MV.s, y: MV.ty + k.y * MV.ih * MV.s, w: Math.max(k.w * MV.iw * MV.s, 10), h: Math.max(k.h * MV.ih * MV.s, 10) });
+function drawView() {
+  if (!MV || !MV.iw || !mapVisible()) return;
+  const view = $("mvView"), vw = view.clientWidth, vh = view.clientHeight;
+  $("mvStage").style.transform = `translate(${MV.tx}px,${MV.ty}px) scale(${MV.s})`;
+  for (const [k, d] of MV.nodes) {
+    const b = markBox(k);
+    if (b.x > vw || b.y > vh || b.x + b.w < 0 || b.y + b.h < 0) { d.style.display = "none"; continue; }
+    d.style.display = "";
+    d.style.left = `${b.x}px`; d.style.top = `${b.y}px`; d.style.width = `${b.w}px`; d.style.height = `${b.h}px`;
+    const vertical = b.h > b.w * 1.6, long = vertical ? b.h : b.w, short = vertical ? b.w : b.h;
+    d.classList.toggle("v", vertical);
+    d.classList.toggle("nolabel", !MV.labels || short < 15 || long < 30);
+  }
+  drawTag(vw, vh);
+}
+// 选中的（或者当前位置所在的红框）上方飘一个名称，方块太小写不下也看得到
+function drawTag(vw, vh) {
+  const tag = $("mvTag"), k = MV.sel || (MV.mode === "pick" ? MV.found.find(m => m.map === MV.map) : null);
+  if (!k || !MV.nodes.has(k)) { tag.classList.add("hidden"); return; }
+  const b = markBox(k);
+  tag.textContent = markLabel(k);
+  tag.classList.remove("hidden");
+  const width = tag.offsetWidth;
+  tag.style.left = `${Math.min(Math.max(b.x + b.w / 2 - width / 2, 4), Math.max(vw - width - 4, 4))}px`;
+  tag.style.top = `${b.y < 30 ? Math.min(b.y + b.h + 6, vh - 30) : b.y - 26}px`;
+}
+function zoomAt(x, y, factor) {
+  const ax = (x - MV.tx) / MV.s, ay = (y - MV.ty) / MV.s;
+  MV.s *= factor; clampView();
+  MV.tx = x - ax * MV.s; MV.ty = y - ay * MV.s;
+  clampView(); layout();
+}
+function zoomToMark(k) {
+  const view = $("mvView"), vw = view.clientWidth, vh = view.clientHeight;
+  const mw = k.w * MV.iw, mh = k.h * MV.ih;
+  MV.s = Math.min(0.7 * vw / Math.max(mw, 1), 0.7 * vh / Math.max(mh, 1), MV.fit * 10);
+  clampView();
+  MV.tx = vw / 2 - (k.x + k.w / 2) * MV.iw * MV.s; MV.ty = vh / 2 - (k.y + k.h / 2) * MV.ih * MV.s;
+  clampView(); layout();
+}
+// 点方块：手指下的方块优先，其次是四周 14px 内最小的（细长的方块也点得中）
+function markAt(px, py) {
+  const pad = 14;
+  let best = null, score = Infinity;
+  for (const k of MV.nodes.keys()) {
+    const b = markBox(k);
+    if (px < b.x - pad || px > b.x + b.w + pad || py < b.y - pad || py > b.y + b.h + pad) continue;
+    const inside = px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h;
+    const s = (inside ? 0 : 1e12) + b.w * b.h;
+    if (s < score) { score = s; best = k; }
+  }
+  return best;
+}
+function selectMark(k, place = "") {
+  MV.sel = k; MV.place = place;
+  refreshMarkClasses(); renderInfo(); renderSheet();
+  $("mvPick").disabled = !(k && MV.mode === "pick");
+  drawView();
+}
+// 下面的小卡片：名称、位置、下级位置有多少
+let belowCache = null;
+function countBelow(node) {
+  if (!belowCache || belowCache.tree !== TREE) belowCache = Object.assign(new Map(), { tree: TREE });
+  if (belowCache.has(node.code)) return belowCache.get(node.code);
+  let n = 0;
+  const stack = [node];
+  while (stack.length) { const kids = TREE.children.get(stack.pop().code) || []; n += kids.length; for (const c of kids) stack.push(c); }
+  belowCache.set(node.code, n);
+  return n;
+}
+function renderSheet() {
+  const box = $("mvSheet"), k = MV.sel;
+  box.classList.toggle("hidden", !k);
+  if (!k) { box.innerHTML = ""; return; }
+  const node = TREE ? findNode(k.loc) : null;
+  const kids = node ? (TREE.children.get(node.code) || []) : [];
+  const map = MAPS.find(m => m[0] === k.map);
+  const both = [k.label, k.label_vi].filter((v, i, a) => v && a.indexOf(v) === i).join(" / ");
+  box.innerHTML = `<div class="nm" data-raw>${safe(both || k.loc)}</div>
+    <div class="pth" data-raw>${safe(k.loc)}${map ? ` · ${safe(map[1])}` : ""}</div>
+    ${MV.place ? `<div class="hint"><span>你找的</span> <b data-raw>${safe(MV.place)}</b> <span>在这个方块里</span></div>` : ""}
+    ${node && countBelow(node) ? `<div class="hint"><span>含</span> <b>${countBelow(node)}</b> <span>个下级位置</span></div>` : ""}
+    ${kids.length ? `<div class="chips2">${kids.slice(0, 16).map(c => `<span data-raw>${safe(libLabel(c, node))}</span>`).join("")}${kids.length > 16 ? "<span>…</span>" : ""}</div>` : ""}
+    ${MV.mode === "pick" ? "" : `<div class="btns"><button type="button" class="btn ghost" data-copy="${safe(k.loc)}">复制位置</button></div>`}`;
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("已复制"); return; } catch {}
+  try {
+    const t = document.createElement("textarea"); t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select(); const ok = document.execCommand("copy"); t.remove();
+    toast(ok ? "已复制" : "复制失败");
+  } catch { toast("复制失败"); }
+}
+// 搜索：方块的名称 / 位置，以及位置库里落在某个方块里的位置（打「V1-2F-B-3」也能找到它在哪个方块）
+let SEARCH = null;
+function searchIndex() {
+  if (SEARCH && SEARCH.tree === TREE) return SEARCH;
+  SEARCH = Object.assign([], { tree: TREE });
+  if (TREE) for (const n of TREE.byCode.values()) SEARCH.push([n, foldText(`${n.path} ${n.name} ${n.name_vi || ""}`)]);
+  return SEARCH;
+}
+function hideResults() { $("mvRes").classList.add("hidden"); $("mvRes").innerHTML = ""; }
+function runSearch() {
+  const q = foldText($("mvQ").value.trim());
+  if (!q) { hideResults(); return; }
+  const words = q.split(/\s+/), has = text => words.every(w => text.includes(w));
+  const marks = MARKS.filter(k => has(foldText(`${k.loc} ${k.label} ${k.label_vi}`)));
+  const places = [];
+  if (q.length >= 2) {
+    const marked = new Set(MARKS.map(k => segs(k.loc).join("-")));
+    const cand = [];
+    for (const [n, text] of searchIndex()) { if (has(text) && !marked.has(segs(n.path).join("-"))) cand.push(n); if (cand.length >= 400) break; }
+    cand.sort((a, b) => a.path.length - b.path.length);
+    for (const n of cand) {
+      const f = marksFor(n.path);
+      if (f.length) places.push([n, f[0]]);
+      if (places.length >= 20) break;
+    }
+  }
+  const mkRow = (k, place, title, sub) => `<div class="r" data-goto="${k.id}" data-place="${safe(place)}"><div data-raw>${safe(title)}</div><small>${sub}</small></div>`;
+  const floor = k => (MAPS.find(m => m[0] === k.map) || [0, k.map])[1];
+  let html = "";
+  if (marks.length) html += `<div class="g">地图上的标注</div>` + marks.slice(0, 30).map(k => mkRow(k, "", `${markLabel(k)}  ${k.loc}`, `<span data-raw>${safe(floor(k))}</span>`)).join("");
+  if (places.length) html += `<div class="g">位置库里的位置（在下面这些标注里）</div>` + places.map(([n, k]) => mkRow(k, n.path, `${n.path}${placeLabel(n) ? "  " + placeLabel(n) : ""}`, `<span>在标注</span> <b data-raw>${safe(markLabel(k))}</b> <span data-raw>${safe(floor(k))}</span>`)).join("");
+  if (!html) html = `<div class="g">没有找到</div>`;
+  const box = $("mvRes");
+  box.innerHTML = html;
+  box.classList.remove("hidden");
+}
+const placeLabel = n => (lang === "vi" ? (n.name_vi || n.name) : n.name) || "";
+function gotoMark(k, place) {
+  hideResults(); $("mvQ").blur();
+  MV.sel = k; MV.place = place || "";
+  if (k.map !== MV.map) { MV.map = k.map; paintFloor(true); return; }
+  refreshMarkClasses(); renderInfo(); renderSheet(); $("mvPick").disabled = MV.mode !== "pick";
+  zoomToMark(k);
+}
+// 手势：一根手指拖动，两根手指缩放，轻点选方块，连点两下放大，电脑上滚轮缩放 -------------------------------
+const ptrs = new Map();
+let gest = null;
+const viewPoint = e => { const r = $("mvView").getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+function startGesture() {
+  const pts = [...ptrs.values()];
+  if (!pts.length) { gest = null; return; }
+  const base = { s: MV.s, tx: MV.tx, ty: MV.ty, t0: Date.now(), moved: false };
+  if (pts.length === 1) { gest = { ...base, kind: "pan", x: pts[0][0], y: pts[0][1] }; return; }
+  const [a, b] = pts, mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+  gest = { ...base, kind: "pinch", moved: true, d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1, ax: (mx - MV.tx) / MV.s, ay: (my - MV.ty) / MV.s };
+}
+function moveGesture() {
+  if (!gest || !MV) return;
+  const pts = [...ptrs.values()];
+  if (gest.kind === "pan" && pts.length === 1) {
+    const dx = pts[0][0] - gest.x, dy = pts[0][1] - gest.y;
+    if (!gest.moved && Math.hypot(dx, dy) < 6) return;
+    gest.moved = true;
+    MV.tx = gest.tx + dx; MV.ty = gest.ty + dy;
+  } else if (gest.kind === "pinch" && pts.length >= 2) {
+    const [a, b] = pts, mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    MV.s = gest.s * (Math.hypot(a[0] - b[0], a[1] - b[1]) || 1) / gest.d;
+    clampView();
+    MV.tx = mx - gest.ax * MV.s; MV.ty = my - gest.ay * MV.s;
+  } else return;
+  clampView(); layout();
+}
+function tapped([x, y]) {
+  const now = Date.now();
+  if (MV.lastTap && now - MV.lastTap.t < 320 && Math.hypot(x - MV.lastTap.x, y - MV.lastTap.y) < 30) { MV.lastTap = null; zoomAt(x, y, 2.2); return; }
+  MV.lastTap = { t: now, x, y };
+  selectMark(markAt(x, y));
+}
+function setupMap() {
+  const view = $("mvView");
+  view.addEventListener("pointerdown", e => {
+    if (!MV || e.target.closest(".mv-ctl")) return;
+    try { view.setPointerCapture(e.pointerId); } catch {}
+    ptrs.set(e.pointerId, viewPoint(e));
+    startGesture();
+  });
+  view.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, viewPoint(e));
+    moveGesture();
+  });
+  const end = e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const point = ptrs.get(e.pointerId), single = ptrs.size === 1, wasPinch = gest && gest.kind === "pinch";
+    const isTap = single && gest && !gest.moved && e.type === "pointerup" && Date.now() - gest.t0 < 500;
+    ptrs.delete(e.pointerId);
+    startGesture();
+    if (gest && wasPinch) gest.moved = true;            // 双指缩放后剩下的那根手指抬起来不算点击
+    if (isTap && MV) tapped(point);
+  };
+  view.addEventListener("pointerup", end);
+  view.addEventListener("pointercancel", end);
+  view.addEventListener("wheel", e => { if (!MV) return; e.preventDefault(); const [x, y] = viewPoint(e); zoomAt(x, y, Math.exp(-e.deltaY * 0.0018)); }, { passive: false });
+  if (window.ResizeObserver) new ResizeObserver(() => {
+    if (!mapVisible() || !MV.iw) return;
+    const atFit = Math.abs(MV.s - MV.fit) < 1e-6;
+    const view2 = $("mvView");
+    MV.fit = Math.min(view2.clientWidth / MV.iw, view2.clientHeight / MV.ih);
+    if (atFit) fitView(); else clampView();
+    layout();
+  }).observe(view);
+  let searchTimer;
+  $("mvQ").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 120); });
+  $("mvQ").addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const first = $("mvRes").querySelector("[data-goto]");
+    if (first) first.click();
+  });
+}
+// 语言切换后方块名称、卡片、标签要重画
+function refreshMapLang() {
+  if (!MV || !MV.iw) return;
+  buildMarks(); renderTabs(); renderInfo(); renderSheet(); if (!$("mvRes").classList.contains("hidden")) runSearch(); layout();
+}
+document.addEventListener("click", e => {
+  const open = e.target.closest("[data-map-open]");
+  if (open) { enterMap("pick", open.dataset.mapOpen); return; }
+  if (!MV) return;
+  const go = e.target.closest("[data-goto]");
+  if (go) { gotoMark(MARKS.find(k => String(k.id) === go.dataset.goto), go.dataset.place); return; }
+  if (!e.target.closest(".mb-search")) hideResults();
+  const tab = e.target.closest("[data-mp]");
+  if (tab) { MV.map = tab.dataset.mp; MV.sel = null; MV.place = ""; paintFloor(false); return; }
+  const copy = e.target.closest("[data-copy]");
+  if (copy) { copyText(copy.dataset.copy); return; }
+  if (e.target.closest("#mvIn")) { const v = $("mvView"); zoomAt(v.clientWidth / 2, v.clientHeight / 2, 1.6); }
+  else if (e.target.closest("#mvOut")) { const v = $("mvView"); zoomAt(v.clientWidth / 2, v.clientHeight / 2, 1 / 1.6); }
+  else if (e.target.closest("#mvFit")) { fitView(); layout(); }
+  else if (e.target.closest("#mvLab")) { MV.labels = !MV.labels; $("mvLab").classList.toggle("off", !MV.labels); layout(); }
+  else if (e.target.closest("#mvClose")) closeMap();
+  else if (e.target.closest("#mvPick")) {
+    const node = MV.sel && findNode(MV.sel.loc);
+    if (!node) { toast("位置库里没有这个位置"); return; }
+    const pre = MV.pre;
+    $(`${pre}_casc`).innerHTML = libCascade(pre, node.path);
+    updatePlaceView(pre);
+    if (pre === "sp") saveStockPlace();
+    try { syncFilled(); } catch {}
+    closeMap();
+  }
+});
+document.addEventListener("change", e => {
+  const sel = e.target.closest && e.target.closest("[data-lib-level]");
+  if (!sel || !TREE) return;
+  const box = sel.closest(".place"), pre = box.id.replace(/_place$/, "");
+  const parent = TREE.byCode.get(sel.dataset.parent);
+  let node = sel.value === "__new__" ? addLibNode(parent) : TREE.byCode.get(sel.value);
+  const cur = $(`${pre}_lib`).value;
+  $(`${pre}_casc`).innerHTML = libCascade(pre, node ? node.path : sel.value === "__new__" ? cur : parent ? parent.path : "");
+  updatePlaceView(pre);
+  if (pre === "sp") saveStockPlace();
+});
+
+// pre：这套「楼栋/楼层/货架-产线」选择器在页面上可能同时出现不止一处（录入页、盘点页各一份），
+// 靠 id 前缀区分，互不干扰；不传 pre 时还是原来的 p_ 前缀，录入页的调用不用改
+function placeHtml(f, v, pre = "p") {
+  if (TREE) return libPlaceHtml(f, v || {}, pre);
+  const s = v || {}, mode = s.mode || f.place;
+  return `<div class="place" id="${pre}_place">
+    <div class="ptitle">${f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? ` · ${f.hint}` : ""}</div>
+    <div class="row">
+      <select id="${pre}_b"><option value="">楼栋</option>${BUILDINGS.map(n => opt(n, n + "栋", s.b)).join("")}</select>
+      <select id="${pre}_f"><option value="">楼层</option>${FLOORS.map(n => opt(n, n + "楼", s.f)).join("")}</select>
+    </div>
+    <div class="seg mini" id="${pre}_mode" data-mode="${mode}">
+      <button type="button" data-m="shelf" class="${mode === "shelf" ? "on" : ""}">货架</button>
+      <button type="button" data-m="line" class="${mode === "line" ? "on" : ""}">产线</button>
+    </div>
+    <div class="row3${mode === "shelf" ? "" : " hidden"}" id="${pre}_shelf">
+      <select id="${pre}_z"><option value="">区</option>${ZONES.map(z => opt(z, z + "区", s.z)).join("")}</select>
+      <input id="${pre}_r" type="number" inputmode="numeric" min="1" max="99" placeholder="层" value="${safe(s.r || "")}">
+      <input id="${pre}_l" type="number" inputmode="numeric" min="1" max="99" placeholder="格" value="${safe(s.l || "")}">
+    </div>
+    <div id="${pre}_line"${mode === "line" ? "" : ' class="hidden"'}>
+      <input id="${pre}_n" placeholder="产线，如 FHA-01" value="${safe(s.n || "")}" autocapitalize="characters" autocomplete="off">
+    </div>
+    <div class="hint" id="${pre}_view"></div>
+  </div>`;
+}
+function placeState(pre = "p") {
+  const g = id => ($(id) ? $(id).value.trim() : "");
+  if (TREE) return { lib: g(`${pre}_lib`) };
+  return { b: g(`${pre}_b`), f: g(`${pre}_f`), mode: $(`${pre}_mode`).dataset.mode, z: g(`${pre}_z`), r: g(`${pre}_r`), l: g(`${pre}_l`), n: g(`${pre}_n`) };
+}
+// 全空 = 没填位置；填一部分就必须填完整
+function placeValue(s) {
+  if (TREE) {
+    if (!s.lib) return { value: "" };
+    const node = findNode(s.lib);
+    if (!node || !/^V\d+-\d+F/i.test(node.path)) return { error: "请选择楼层" };   // 至少要到「栋-楼层」（楼层在哪一级看库，所以看写法）
+    return { value: node.path };
+  }
+  const shelf = s.mode === "shelf";
+  const parts = shelf ? [s.z, s.r, s.l] : [s.n];
+  if (!s.b && !s.f && parts.every(x => !x)) return { value: "" };
+  if (!s.b) return { error: "请选择楼栋" };
+  if (!s.f) return { error: "请选择楼层" };
+  if (shelf) {
+    if (!s.z) return { error: "请选择货架的区" };
+    if (!/^\d+$/.test(s.r) || +s.r < 1) return { error: "请填货架的层（数字）" };
+    if (!/^\d+$/.test(s.l) || +s.l < 1) return { error: "请填货架的格（数字）" };
+    return { value: `V${s.b}-${s.f}F-${s.z}-${+s.r}-${+s.l}` };
+  }
+  const line = s.n.toUpperCase().replace(/\s+/g, "");
+  if (!/^[A-Z0-9][A-Z0-9-]*$/.test(line)) return { error: "产线只能写字母、数字和横线，如 FHA-01" };
+  return { value: `V${s.b}-${s.f}F-${line}` };
+}
+function updatePlaceView(pre = "p") {
+  const el = $(`${pre}_view`); if (!el) return;
+  const r = placeValue(placeState(pre));
+  el.textContent = r.value ? `将记录为：${r.value}` : (r.error ? "" : "未填位置");
+}
+
+// ---- IndexedDB ------------------------------------------------------------------------
+let dbp = null;
+function db() {
+  if (!dbp) dbp = new Promise((ok, no) => {
+    const r = indexedDB.open("collector", 2);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains("records")) d.createObjectStore("records", { keyPath: "id", autoIncrement: true });
+      if (!d.objectStoreNames.contains("stock")) d.createObjectStore("stock", { keyPath: "id", autoIncrement: true });
+    };
+    r.onsuccess = () => ok(r.result);
+    r.onerror = () => no(r.error);
+  });
+  return dbp;
+}
+async function tx(store, mode, fn) {
+  const d = await db();
+  return new Promise((ok, no) => {
+    const t = d.transaction(store, mode);
+    const res = fn(t.objectStore(store));
+    t.oncomplete = () => ok(res && res.result);
+    t.onerror = () => no(t.error);
+  });
+}
+// iPhone 的 Safari（尤其「添加到主屏幕」后）直接把 Blob 存进 IndexedDB 不可靠，保存会悄悄失败、
+// 界面却什么反应都没有：存之前转成 ArrayBuffer，读出来再转回 Blob，其它代码不用管这层。
+const packBlob = async b => (b instanceof Blob) ? { __blob: true, type: b.type, buf: await b.arrayBuffer() } : b;
+const unpackBlob = v => (v && v.__blob) ? new Blob([v.buf], { type: v.type }) : v;
+async function packRecord(rec) {
+  const out = { ...rec };
+  if ("photo" in out) out.photo = await packBlob(out.photo);
+  if (out.extra) { const e = {}; for (const k in out.extra) e[k] = await packBlob(out.extra[k]); out.extra = e; }
+  return out;
+}
+function unpackRecord(rec) {
+  const out = { ...rec };
+  if ("photo" in out) out.photo = unpackBlob(out.photo);
+  if (out.extra) { const e = {}; for (const k in out.extra) e[k] = unpackBlob(out.extra[k]); out.extra = e; }
+  return out;
+}
+async function putRec(rec) { const packed = await packRecord(rec); return tx("records", "readwrite", s => s.put(packed)); }
+const delRec = id => tx("records", "readwrite", s => s.delete(id));
+async function allRecs() { return (await tx("records", "readonly", s => s.getAll())).map(unpackRecord); }
+// ---- 盘点：条码 + 产线/位置，另开一个独立的表，不跟「物品采集」混在一起 ----------------------
+const putStock = rec => tx("stock", "readwrite", s => s.put(rec));
+const delStock = id => tx("stock", "readwrite", s => s.delete(id));
+const allStock = () => tx("stock", "readonly", s => s.getAll());
+
+// ---- 状态 -----------------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+let type = "item";
+let photo = null;              // Blob
+let previewUrl = null;
+const kept = {};               // 上次保存时保留下来的值
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("show"), 2200);
+}
+function safe(text) { return String(text).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+// ---- 语言：中文 / Tiếng Việt ----------------------------------------------------------
+// 只换界面上显示的文字；存下来、导出的表格内容始终是中文，和电脑端导入一致。
+const VI = {
+ "设备编号": "Mã thiết bị",
+ "设备名称": "Tên tiếng Trung",
+ "越南文名称": "Tên tiếng Việt",
+ "型号": "Model",
+ "厂商": "Nhà cung cấp",
+ "资产编号": "Mã tài sản",
+ "类别": "Loại",
+ "位置": "Vị trí",
+ "状态": "Trạng thái",
+ "出厂编号": "Số seri",
+ "设备功率": "Công suất",
+ "设备电压": "Điện áp",
+ "设备重量": "Khối lượng",
+ "出厂时间": "Ngày sản xuất",
+ "使用年限": "Số năm sử dụng",
+ "校准时间": "Ngày hiệu chuẩn",
+ "下次校准时间": "Hiệu chuẩn lần sau",
+ "校验人": "Người hiệu chuẩn",
+ "设备状况": "Tình trạng",
+ "缺少配件": "Phụ kiện thiếu",
+ "贴标位置": "Vị trí dán tem",
+ "标签编号": "Mã thẻ",
+ "备注": "Ghi chú",
+ "照片": "Ảnh",
+ "标签照片": "Ảnh tem",
+ "设备标签照片": "Ảnh tem thiết bị",
+ "资产标签照片": "Ảnh tem tài sản",
+ "铭牌照片": "Ảnh bảng tên",
+ "治具编号": "Mã đồ gá",
+ "治具名称": "Tên tiếng Trung",
+ "物品编号": "Mã vật tư",
+ "物品名称": "Tên tiếng Trung",
+ "规格": "Quy cách",
+ "单位": "Đơn vị",
+ "低库存提醒": "Cảnh báo tồn",
+ "库位": "Vị trí",
+ "初始库存": "Tồn ban đầu",
+ "在库": "Trong kho",
+ "使用中": "Đang dùng",
+ "待维修": "Chờ sửa",
+ "维修中": "Đang sửa",
+ "报废": "Thanh lý",
+ "损坏": "Hư hỏng",
+ "停用": "Ngừng sử dụng",
+ "已出库": "Đã xuất kho",
+ "正常": "Bình thường",
+ "故障": "Hỏng",
+ "缺配件": "Thiếu phụ kiện",
+ "治具": "Đồ gá",
+ "五金": "Ngũ kim",
+ "电气": "Điện",
+ "气动": "Khí nén",
+ "ESD": "Chống tĩnh điện (ESD)",
+ "工具": "Dụng cụ",
+ "量具": "Dụng cụ đo",
+ "耗材": "Vật tư tiêu hao",
+ "配件": "Phụ kiện",
+ "劳保": "Bảo hộ lao động",
+ "包材": "Vật liệu đóng gói",
+ "其他": "Khác",
+ "件": "cái",
+ "个": "cái",
+ "套": "bộ",
+ "对": "cặp",
+ "双": "đôi",
+ "把": "cây",
+ "根": "cây",
+ "条": "sợi",
+ "张": "tấm",
+ "台": "chiếc",
+ "盒": "hộp",
+ "包": "gói",
+ "卷": "cuộn",
+ "米": "mét",
+ "箱": "thùng",
+ "瓶": "chai",
+ "设备": "Thiết bị",
+ "测试": "Kiểm tra (Test)",
+ "模具": "Khuôn",
+ "检具": "Dụng cụ kiểm tra",
+ "工装": "Đồ gá công nghệ",
+ "物品采集": "Thu thập vật phẩm",
+ "物品": "Vật tư",
+ "录入": "Nhập liệu",
+ "已记录": "Đã ghi",
+ "拍照": "Chụp",
+ "重拍": "Chụp lại",
+ "未拍照": "Chưa chụp",
+ "保存后：同款连续录入（只改编号、拍照）": "Sau khi lưu: nhập liên tiếp cùng loại (chỉ đổi mã, chụp ảnh)",
+ "地图": "Bản đồ", "搜索位置或名称，如 FHT14、仓库": "Tìm vị trí hoặc tên, vd FHT14, kho", "地图上的标注": "Đánh dấu trên bản đồ",
+ "位置库里的位置（在下面这些标注里）": "Vị trí trong thư viện (nằm trong các đánh dấu bên dưới)", "没有找到": "Không tìm thấy", "在标注": "trong đánh dấu",
+ "本层": "Tầng này có", "个标注": "đánh dấu", "点方块看位置，双指缩放，双击放大，拖动移动": "Bấm ô để xem vị trí, hai ngón để thu phóng, chạm đúp để phóng to, kéo để di chuyển",
+ "位置库更新于": "Thư viện cập nhật", "含": "Gồm", "个下级位置": "vị trí cấp dưới", "你找的": "Vị trí bạn tìm", "在这个方块里": "nằm trong ô này",
+ "复制位置": "Sao chép vị trí", "已复制": "Đã sao chép", "复制失败": "Sao chép thất bại", "名": "Tên",
+ "还没有地图数据（请先在电脑端导出位置库和地图）": "Chưa có dữ liệu bản đồ (hãy xuất thư viện vị trí và bản đồ từ máy tính trước)",
+ "位置地图": "Bản đồ vị trí", "选这个位置": "Chọn vị trí này", "已选：": "Đã chọn: ", "在图上的红框处": "ở khung đỏ trên bản đồ",
+ "（地图只标到第三级，红框是它所在的": "(bản đồ chỉ đánh dấu đến cấp 3, khung đỏ là", "）": ")", "还没有在地图上标注": "chưa được đánh dấu trên bản đồ",
+ "点图上的方块选位置": "Bấm vào ô trên bản đồ để chọn vị trí", "在地图上看 / 选位置": "Xem / chọn vị trí trên bản đồ", "位置库里没有这个位置": "Thư viện không có vị trí này",
+ "选楼栋": "Chọn tòa", "（不再细分）": "(không chọn thêm)", "＋ 新增…": "＋ Thêm mới…", "请选择楼层": "Vui lòng chọn tầng",
+ "保存后：只保留类别、位置等常用项": "Sau khi lưu: chỉ giữ loại, vị trí…",
+ "保存后：全部清空": "Sau khi lưu: xóa hết",
+ "删除已导出的": "Xóa các mục đã xuất",
+ "保存，录下一个": "Lưu, nhập tiếp",
+ "保存修改": "Lưu thay đổi",
+ "导出文件": "Xuất tệp",
+ "把条码或二维码放进框里，自动识别": "Đặt mã vạch hoặc mã QR vào khung, tự động nhận diện",
+ "取消": "Hủy",
+ "关闭": "Đóng",
+ "编辑": "Sửa",
+ "复制新增": "Sao chép thêm mới",
+ "删除": "Xóa",
+ "导出文件已生成": "Đã tạo tệp xuất",
+ "分享（发到微信等）": "Chia sẻ (gửi qua WeChat, Zalo…)",
+ "保存到手机": "Lưu vào điện thoại",
+ "正在修改：": "Đang sửa:",
+ "扫码": "Quét",
+ "更多信息（选填）": "Thông tin thêm (tùy chọn)",
+ "楼栋": "Tòa",
+ "楼层": "Tầng",
+ "货架": "Giá kệ",
+ "产线": "Chuyền",
+ "区": "Khu",
+ "层": "Tầng kệ",
+ "格": "Ô",
+ "未填位置": "Chưa chọn vị trí",
+ "产线，如 FHA-01": "Chuyền, vd FHA-01",
+ "留空自动生成": "để trống sẽ tự tạo",
+ "0=不提醒": "0 = không nhắc",
+ "填了初始库存时必填": "bắt buộc nếu có tồn ban đầu",
+ "铭牌序列号，不可重复": "số seri trên bảng tên, không trùng",
+ "须晚于校准时间": "phải sau ngày hiệu chuẩn",
+ "手持终端绑定用，可不填": "dùng gắn với thiết bị cầm tay, có thể bỏ trống",
+ "带单位，如 1.5kW": "kèm đơn vị, vd 1.5kW",
+ "带单位，如 220V": "kèm đơn vị, vd 220V",
+ "带单位，如 30kg": "kèm đơn vị, vd 30kg",
+ "如 5年": "vd 5 năm",
+ "同型号只需拍一张，之后的同型号不用再拍": "Cùng model chỉ cần chụp một ảnh, các máy cùng model sau không cần chụp lại",
+ "这个型号已经拍过照片，可以不拍（想换也可以重拍）": "Model này đã có ảnh, có thể không chụp (muốn đổi thì chụp lại)",
+ "同型号照片": "Ảnh cùng model",
+ "录入时间": "Thời gian nhập",
+ "已导出": "Đã xuất",
+ "待导出": "Chờ xuất",
+ "自动编号": "Tự tạo mã",
+ "还没有记录": "Chưa có bản ghi",
+ "请选择楼栋": "Vui lòng chọn tòa",
+ "请选择楼层": "Vui lòng chọn tầng",
+ "请选择货架的区": "Vui lòng chọn khu của giá kệ",
+ "请填货架的层（数字）": "Vui lòng nhập tầng của giá kệ (số)",
+ "请填货架的格（数字）": "Vui lòng nhập ô của giá kệ (số)",
+ "产线只能写字母、数字和横线，如 FHA-01": "Chuyền chỉ gồm chữ, số và gạch ngang, vd FHA-01",
+ "下次校准时间必须晚于校准时间": "Ngày hiệu chuẩn lần sau phải sau ngày hiệu chuẩn",
+ "请先拍一张照片": "Vui lòng chụp một ảnh trước",
+ "这个型号还没有照片，请拍一张（同型号只需拍一张）": "Model này chưa có ảnh, hãy chụp một ảnh (cùng model chỉ cần chụp một lần)",
+ "填了初始库存，必须选择库位": "Đã nhập tồn ban đầu, bắt buộc chọn vị trí kho",
+ "已保存修改": "Đã lưu thay đổi",
+ "已带入这条的信息，改一下编号、拍照就能保存": "Đã điền thông tin của mục này, đổi mã và chụp ảnh là lưu được",
+ "需要用 https 网址打开才能扫码": "Cần mở bằng địa chỉ https mới quét được",
+ "扫码组件没加载出来，请联网打开一次页面": "Chưa tải được thành phần quét, hãy mở trang khi có mạng một lần",
+ "没有相机权限，请在浏览器设置里允许，或手动输入": "Chưa có quyền camera, hãy cho phép trong cài đặt trình duyệt, hoặc nhập tay",
+ "打不开相机，请手动输入": "Không mở được camera, hãy nhập tay",
+ "这张图片读不出来，请重拍": "Không đọc được ảnh này, hãy chụp lại",
+ "没有待导出的记录": "Không có bản ghi nào chờ xuất",
+ "分享失败，请改用「保存到手机」": "Chia sẻ thất bại, hãy dùng 「Lưu vào điện thoại」",
+ "导出失败": "Xuất thất bại",
+ "没有已导出的记录": "Không có bản ghi đã xuất",
+ "删除这条记录？删除后不能恢复。": "Xóa bản ghi này? Không thể khôi phục sau khi xóa.",
+ "已分享": "Đã chia sẻ",
+ "清空": "Xóa nhập",
+ "清空当前填写的内容？": "Xóa nội dung đang nhập?",
+ "已清空": "Đã xóa",
+ "微信里不能下载，请点右上角「···」→「在浏览器打开」后再导出": "Trong WeChat không tải được, hãy bấm 「···」 góc phải → 「Mở bằng trình duyệt」 rồi xuất",
+ "你在微信内置浏览器里，它不支持下载和分享。请点右上角「···」→「在浏览器打开」（iPhone 选 Safari，安卓选 Chrome 等），在那里导出。": "Bạn đang dùng trình duyệt trong WeChat, không hỗ trợ tải và chia sẻ. Hãy bấm 「···」 góc phải → 「Mở bằng trình duyệt」 (iPhone chọn Safari, Android chọn Chrome…) rồi xuất ở đó.",
+ "全选": "Chọn tất cả",
+ "取消全选": "Bỏ chọn tất cả",
+ "不选则只导出「待导出」的；勾选后可重复导出已导出的": "Không chọn thì chỉ xuất mục 「Chờ xuất」; chọn để xuất lại cả mục đã xuất",
+ "此浏览器或连接方式不支持分享，请改用「保存到手机」": "Trình duyệt/kết nối này không hỗ trợ chia sẻ, hãy dùng 「Lưu vào điện thoại」"
+};
+const tr = s => VI[s] || s;
+const PATTERNS = [
+  [/^已保存（待导出共 (\d+) 条）$/, m => `Đã lưu (chờ xuất tổng ${m[1]} mục)`],
+  [/^请填写「(.+)」$/, m => `Vui lòng nhập 「${tr(m[1])}」`],
+  [/^「(.+)」(.+) 已经录过了$/, m => `「${tr(m[1])}」${m[2]} đã được nhập rồi`],
+  [/^已扫到：(.+)$/, m => `Đã quét: ${m[1]}`],
+  [/^(已分享|已保存)：(\d+) 条，(\d+) 张照片$/, m => `${m[1] === "已分享" ? "Đã chia sẻ" : "Đã lưu"}: ${m[2]} mục, ${m[3]} ảnh`],
+  [/^共 (\d+) 条，待导出 (\d+)$/, m => `Tổng ${m[1]} mục, chờ xuất ${m[2]}`],
+  [/^(\d+) 条记录，(\d+) 张照片，([\d.]+) MB(。.*)?$/, m => `${m[1]} bản ghi, ${m[2]} ảnh, ${m[3]} MB` + (m[4] ? ". Môi trường này không hỗ trợ chia sẻ trực tiếp, hãy lưu trước rồi gửi từ ứng dụng Tệp" : "")],
+  [/^已选 (\d+) 条$/, m => `Đã chọn ${m[1]} mục`],
+  [/^导出所选（(\d+)）$/, m => `Xuất mục đã chọn (${m[1]})`],
+  [/^将记录为：(.+)$/, m => `Sẽ ghi là: ${m[1]}`],
+  [/^(\d+)栋$/, m => `Tòa ${m[1]}`],
+  [/^(\d+)楼$/, m => `Tầng ${m[1]}`],
+  [/^([A-Z])区$/, m => `Khu ${m[1]}`],
+  [/^删除已导出的 (\d+) 条记录（含照片）？删除后不能恢复。$/, m => `Xóa ${m[1]} bản ghi đã xuất (kèm ảnh)? Không thể khôi phục.`],
+];
+let lang = "zh";
+try { lang = localStorage.getItem("lang") === "vi" ? "vi" : "zh"; } catch {}
+// 一段文字 → 越南语（没有对应翻译的原样返回）。前后空格保留；「甲 · 乙」按段翻译。
+function mapText(s) {
+  if (lang !== "vi") return s;
+  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s), core = m[2];
+  if (!core) return s;
+  if (VI[core]) return m[1] + VI[core] + m[3];
+  for (const [re, fn] of PATTERNS) { const x = re.exec(core); if (x) return m[1] + fn(x) + m[3]; }
+  if (core.includes(" · ")) {
+    const parts = core.split(" · "), out = parts.map(tr);
+    if (out.some((p, i) => p !== parts[i])) return m[1] + out.join(" · ") + m[3];
+  }
+  return s;
+}
+const T = mapText;
+// 页面上的文字节点、placeholder 出现或变化时自动翻译；切回中文时恢复原文
+const CJK = /[一-鿿]/, ZH = new WeakMap(), ZT = new WeakMap(), AZ = new WeakMap();
+function trText(n) {
+  let orig = ZH.get(n);
+  if (orig === undefined || (n.nodeValue !== orig && n.nodeValue !== ZT.get(n))) { orig = n.nodeValue; ZH.set(n, orig); }
+  const out = lang === "vi" ? mapText(orig) : orig;
+  ZT.set(n, out);
+  if (out !== n.nodeValue) n.nodeValue = out;
+}
+function trAttr(el) {
+  const cur = el.getAttribute("placeholder"); if (cur === null) return;
+  let rec = AZ.get(el);
+  if (!rec || (cur !== rec.orig && cur !== rec.out)) rec = { orig: cur };
+  rec.out = lang === "vi" ? mapText(rec.orig) : rec.orig;
+  AZ.set(el, rec);
+  if (rec.out !== cur) el.setAttribute("placeholder", rec.out);
+}
+// 用户自己填的内容（名称、型号、编号…）标上 data-raw，不参与翻译，免得刚好和词典里的词一样被换掉
+const isRaw = n => !!(n.parentNode && n.parentNode.closest && n.parentNode.closest("[data-raw]"));
+const wanted = n => ZH.has(n) || (lang === "vi" && CJK.test(n.nodeValue) && !isRaw(n));
+function trTree(root) {
+  if (root.nodeType === 3) { if (wanted(root)) trText(root); return; }
+  if (root.nodeType !== 1 || /^(SCRIPT|STYLE)$/.test(root.tagName)) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => /^(SCRIPT|STYLE)$/.test(n.parentNode.tagName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT });
+  for (let n = w.nextNode(); n; n = w.nextNode()) if (wanted(n)) trText(n);
+  const els = root.matches("[placeholder]") ? [root] : [];
+  root.querySelectorAll("[placeholder]").forEach(e => els.push(e));
+  els.forEach(trAttr);
+}
+let busy = false;
+const mo = new MutationObserver(muts => {
+  if (busy || lang !== "vi") { mo.takeRecords(); return; }
+  busy = true;
+  for (const m of muts) {
+    if (m.type === "childList") m.addedNodes.forEach(trTree);
+    else if (m.type === "characterData") { if (wanted(m.target)) trText(m.target); }
+    else if (m.type === "attributes") trAttr(m.target);
+  }
+  mo.takeRecords(); busy = false;
+});
+mo.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ["placeholder"] });
+function applyLang() {
+  document.documentElement.lang = lang === "vi" ? "vi" : "zh-CN";
+  document.title = lang === "vi" ? VI["物品采集"] : "物品采集";
+  $("langBtn").textContent = lang === "vi" ? "中文" : "Tiếng Việt";
+  busy = true; trTree(document.body); mo.takeRecords(); busy = false;
+}
+
+// ---- 表单 -----------------------------------------------------------------------------
+function renderTypes() {
+  $("types").innerHTML = Object.entries(TYPES).map(([k, v]) => `<button data-type="${k}" class="${k === type ? "on" : ""}">${v.label}</button>`).join("");
+}
+// 短字段（下拉、数字、日期、型号等）两个并排一行，其余占满一行
+const HALF = ["型号", "厂商", "规格", "校验人", "缺少配件", "贴标位置", "设备功率", "设备电压", "设备重量", "使用年限"];   // 带扫码按钮的编号框占满一行
+// 编号类字段只许英文字母和数字；出厂编号另外允许英文符号，都不许出现汉字 / 越南文等文字和空格
+const codeClean = (k, s) => UNIQUE.includes(k) ? String(s).replace(k === "出厂编号" ? /[^\x21-\x7E]/g : /[^A-Za-z0-9]/g, "") : s;
+function fieldHtml(f) {
+  if (f.place) return `<div class="f">${placeHtml(f, kept[type + "place"])}</div>`;
+  const v = codeClean(f.k, kept[type + f.k] ?? f.def ?? "");
+  const id = "f_" + f.k;
+  let input;
+  if (f.opts) input = `<select id="${id}"><option value=""></option>${f.opts.map(o => `<option value="${o}"${o === v ? " selected" : ""}>${o}</option>`).join("")}</select>`;
+  else if (f.area) input = `<textarea id="${id}">${safe(v)}</textarea>`;
+  else input = `<input id="${id}" value="${safe(v)}"${f.type === "number" ? ' type="number" inputmode="numeric" min="0"' : f.type === "date" ? ' type="text" data-date="1"' : ""}${f.ph ? ` placeholder="${safe(f.ph)}"` : ""}${UNIQUE.includes(f.k) ? ' data-code="1" autocapitalize="characters" autocorrect="off" spellcheck="false"' : ""} autocomplete="off">`;
+  // 名称直接写在格子里（没填时是大字，填了以后缩成小字留在格子左上角）
+  const label = `<label for="${id}">${f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? `<span class="tip">${f.hint}</span>` : ""}</label>`;
+  const scan = UNIQUE.includes(f.k) ? `<button type="button" class="scanbtn" data-scan="${id}">扫码</button>` : "";
+  const half = f.opts || f.type === "number" || f.type === "date" || HALF.includes(f.k);
+  return `<div class="f${half ? " half" : ""}"${f.when ? ` data-wk="${f.when.k}" data-wv="${f.when.v}"` : ""}><div class="fl${f.area ? " area" : ""}"><div class="box">${input}${label}</div>${scan}</div></div>`;
+}
+function syncFilled() {
+  for (const box of $("fields").querySelectorAll(".fl .box")) {
+    const c = box.querySelector("input,select,textarea");
+    box.classList.toggle("filled", !!(c && c.value));
+  }
+}
+// 录入页 / 详情里的显示顺序（layout 里没列出的排在最后）
+function displayFields(def) {
+  const by = Object.fromEntries(def.fields.map(f => [f.k, f]));
+  let order = (def.layout || []).filter(k => by[k]);
+  order = order.concat(def.fields.map(f => f.k).filter(k => !order.includes(k)));
+  const nameK = def.fields[1].k, viK = "越南文名称", viFirst = lang === "vi" && !!by[viK];
+  if (viFirst) {                                   // 越南语操作员：越南文名称放主位，中文名称与它互换、收进「更多信息」
+    const a = order.indexOf(nameK), b = order.indexOf(viK);
+    if (a >= 0 && b >= 0) { order[a] = viK; order[b] = nameK; }
+  }
+  return order.map(k => {
+    const f = by[k];
+    if (!viFirst) return f;
+    if (k === viK) return { ...f, req: true, more: false };
+    if (k === nameK) return { ...f, req: false, more: true };
+    return f;
+  });
+}
+// 名称：中文名称和越南文名称填一个就行；哪个是必填看当前语言
+function displayName(def, data) {
+  const zh = data[def.fields[1].k], vi = data["越南文名称"];
+  return lang === "vi" ? (vi || zh || "") : (zh || vi || "");
+}
+// 切换语言时表单结构会变，先把已填的内容存下来再重画
+function snapshotForm() {
+  for (const f of TYPES[type].fields) {
+    if (f.place) kept[type + "place"] = placeState();
+    else { const el = $("f_" + f.k); if (el) kept[type + f.k] = el.value; }
+  }
+}
+function renderForm() {
+  const fs = displayFields(TYPES[type]);
+  const more = fs.filter(f => f.more).map(fieldHtml).join("");
+  $("fields").innerHTML = fs.filter(f => !f.more).map(fieldHtml).join("") +
+    (more ? `<details class="more"><summary>更多信息（选填）</summary>${more}</details>` : "");
+  toggleWhen(); updatePlaceView(); renderExtra(); updatePhotoHint(); syncFilled();
+}
+
+// 同型号的设备 / 治具共用一张照片：这个型号拍过一张，后面的同型号不用再拍（系统导入时会自动继承）
+let modelPhotos = new Set();
+const modelKey = (t, m) => t + "|" + String(m || "").trim().toLowerCase();
+async function refreshModelPhotos() {
+  modelPhotos = new Set((await allRecs()).filter(r => r.photo && r.data["型号"]).map(r => modelKey(r.type, r.data["型号"])));
+  updatePhotoHint();
+}
+function photoNeeded() {
+  if (type === "item") return true;
+  const m = $("f_型号") ? $("f_型号").value : "";
+  return !(m.trim() && modelPhotos.has(modelKey(type, m)));
+}
+function updatePhotoHint() {
+  const need = photoNeeded();
+  $("photoStar").classList.toggle("hidden", !need);
+  $("photoHint").textContent = type === "item" ? "" : need ? "同型号只需拍一张，之后的同型号不用再拍" : "这个型号已经拍过照片，可以不拍（想换也可以重拍）";
+}
+
+// 标签照片 / 铭牌照片：设备的附加照片，选填
+let extra = {};
+const extraUrls = {};
+let extraTarget = "";
+function showExtra(k) {
+  if (extraUrls[k]) { URL.revokeObjectURL(extraUrls[k]); delete extraUrls[k]; }
+  const has = !!extra[k];
+  if (has) extraUrls[k] = URL.createObjectURL(extra[k]);
+  const pv = document.getElementById("xpv_" + k), btn = document.getElementById("xbtn_" + k);
+  if (pv) pv.innerHTML = has ? `<img src="${extraUrls[k]}" alt="">` : "未拍照";
+  if (btn) btn.textContent = has ? "重拍" : "拍照";
+}
+function renderExtra() {
+  const ks = TYPES[type].extraPhotos || [];
+  $("xphotos").innerHTML = ks.map(k => `<div class="ptile"><div class="plabel">${k}</div><div class="pv" id="xpv_${k}">未拍照</div><button class="pbtn" id="xbtn_${k}" data-x="${k}" type="button">拍照</button></div>`).join("");
+  ks.forEach(showExtra);
+}
+// 有 when 的字段：所依赖的那一项选到指定值才显示（如类别=测试 → 校准信息）
+function toggleWhen() {
+  for (const el of $("fields").querySelectorAll("[data-wk]")) {
+    const dep = $("f_" + el.dataset.wk);
+    el.classList.toggle("hidden", !dep || dep.value !== el.dataset.wv);
+  }
+}
+// 读出表单；位置不完整时抛出 {message, focus}
+function readForm() {
+  const out = {};
+  for (const f of TYPES[type].fields) {
+    if (f.place) {
+      const r = placeValue(placeState());
+      if (r.error) throw { message: r.error, focus: "p_b" };
+      out[f.k] = r.value;
+    } else if (f.when && $("f_" + f.k).closest("[data-wk]").classList.contains("hidden")) out[f.k] = "";
+    else {
+      const raw = $("f_" + f.k).value.trim(), val = codeClean(f.k, raw);
+      if (val !== raw) throw { message: f.k === "出厂编号" ? "出厂编号只能是英文字母、数字和英文符号，不能有文字" : `${f.k}只能是英文字母和数字`, focus: "f_" + f.k };
+      out[f.k] = val;
+    }
+  }
+  return out;
+}
+function setPhoto(blob) {
+  photo = blob;
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = blob ? URL.createObjectURL(blob) : null;
+  $("pv").innerHTML = blob ? `<img src="${previewUrl}" alt="">` : "未拍照";
+  $("shoot").textContent = blob ? "重拍" : "拍照";
+}
+
+// 缩小并转 JPEG（长边 1280），一张约 150–300 KB，导出包不会太大
+async function shrink(file, max = 1280) {   // 铭牌上的小字要看得清，附加照片用更大的尺寸
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+  catch { bmp = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); }); }
+  const w = bmp.width || bmp.naturalWidth, h = bmp.height || bmp.naturalHeight;
+  const s = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement("canvas");
+  c.width = Math.round(w * s); c.height = Math.round(h * s);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise(ok => c.toBlob(ok, "image/jpeg", 0.82));
+}
+async function onFile(e) {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file) return;
+  try { setPhoto(await shrink(file)); } catch { toast("这张图片读不出来，请重拍"); }
+}
+
+async function save() {
+  const def = TYPES[type];
+  let data;
+  try { data = readForm(); }
+  catch (e) { toast(e.message); if (e.focus && $(e.focus)) $(e.focus).focus(); return; }
+  const nameK = def.fields[1].k;
+  if (!data[nameK] && !data["越南文名称"]) {
+    const k = lang === "vi" ? "越南文名称" : nameK;
+    toast(`请填写「${k}」`); const el = $("f_" + k); if (el) el.focus(); return;
+  }
+  const missing = displayFields(def).find(f => f.req && f.k !== nameK && f.k !== "越南文名称" && (!f.when || data[f.when.k] === f.when.v) && !data[f.k]);
+  if (missing) { toast(`请填写「${missing.k}」`); const el = $(missing.place ? "p_b" : "f_" + missing.k); if (el) el.focus(); return; }
+  if (data["校准时间"] && data["下次校准时间"] && data["下次校准时间"] <= data["校准时间"]) { toast("下次校准时间必须晚于校准时间"); $("f_下次校准时间").focus(); return; }
+  if (!photo && photoNeeded()) { toast(type === "item" ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
+  if (type === "item" && Number(data["初始库存"]) > 0 && !data["库位"]) { toast("填了初始库存，必须选择库位"); $("p_b").focus(); return; }
+  // 每一行就是一台（一件），编号和出厂编号不能重复
+  const old = await allRecs();
+  for (const k of ["设备编号", "治具编号", "物品编号", "出厂编号"]) {
+    if (data[k] && old.some(r => r.id !== editingId && r.type === type && r.data[k] === data[k])) {
+      toast(`「${k}」${data[k]} 已经录过了`); const el = $("f_" + k); if (el) el.focus(); return;
+    }
+  }
+  if (editingId) {                                    // 修改已有记录：原地更新，重新标为待导出
+    const prev = old.find(r => r.id === editingId);
+    try { await putRec({ ...prev, data, photo, extra, exported: false }); }
+    catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
+    leaveEdit(); refreshCount(); refreshModelPhotos();
+    document.querySelector('#tabs [data-tab="list"]').click();
+    toast("已保存修改");
+    return;
+  }
+  const place = def.fields.find(f => f.place), placeSnapshot = place ? placeState() : null;
+  try { await putRec({ type, data, photo, extra, created: Date.now(), exported: false }); }
+  catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
+  extra = {};
+  const mode = $("keepMode").value;
+  try { localStorage.setItem("keepMode", mode); } catch {}
+  for (const f of def.fields) {
+    if (f.place) continue;
+    kept[type + f.k] = mode === "all" ? (UNIQUE.includes(f.k) ? undefined : data[f.k]) : (mode === "common" && f.keep ? data[f.k] : undefined);
+  }
+  if (place) kept[type + "place"] = mode === "none" ? undefined : placeSnapshot;
+  setPhoto(null); renderForm(); refreshCount(); refreshModelPhotos();
+  $("main").scrollTo({ top: 0, behavior: "smooth" });
+  const n = old.filter(r => !r.exported).length + 1;
+  toast(`已保存（待导出共 ${n} 条）`);
+}
+
+// ---- 扫码：用相机识别条码 / 二维码，填进编号框（扫码库 zxing.min.js 第一次用到时才加载）--------
+function loadZXing() {
+  return window.ZXing ? Promise.resolve() : new Promise((ok, no) => {
+    const s = document.createElement("script"); s.src = "zxing.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s);
+  });
+}
+let reader = null, scanTarget = "";
+async function startScan(id) {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("需要用 https 网址打开才能扫码"); return; }
+  try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
+  const Z = window.ZXing, F = Z.BarcodeFormat, hints = new Map();
+  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.ITF, F.DATA_MATRIX]);
+  hints.set(Z.DecodeHintType.TRY_HARDER, true);
+  scanTarget = id;
+  $("scan").classList.remove("hidden");
+  reader = new Z.BrowserMultiFormatReader(hints, 250);
+  try {
+    await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" } } }, "scanVideo", result => {
+      if (result) finishScan(result.getText());
+    });
+  } catch (e) {
+    stopScan();
+    toast(e && e.name === "NotAllowedError" ? "没有相机权限，请在浏览器设置里允许，或手动输入" : "打不开相机，请手动输入");
+  }
+}
+function stopScan() {
+  if (reader) { try { reader.reset(); } catch {} reader = null; }
+  $("scan").classList.add("hidden");
+}
+function finishScan(text) {
+  const el = $(scanTarget); text = String(text || "").trim();
+  stopScan();
+  if (!el || !text) return;
+  el.value = text; el.dispatchEvent(new Event("input", { bubbles: true }));
+  if (navigator.vibrate) navigator.vibrate(60);
+  toast("已扫到：" + text);
+}
+
+// ---- 盘点：只填「产线/位置」+ 扫条码，可以一直扫，位置自动带到下一次 ------------------------
+// 位置输入跟电脑端、录入页是同一套「楼栋+楼层+货架/产线」选择器（同一个 placeHtml），
+// 不再是随便打字的文本框，这样导出的位置格式（如 V3-2F-FHA-01）才跟设备台账里的位置对得上，
+// 电脑端「盘点」导入后才能正确判断「相符」还是「位置不符」，而不是文本对不上永远显示不符。
+const STOCK_PLACE_FIELD = { k: "产线 / 位置", place: "line", hint: "可不填，不强制；每次扫完自动保留，下次接着用" };
+function renderStockPlace(state) {
+  $("stockPlaceWrap").innerHTML = placeHtml(STOCK_PLACE_FIELD, state, "sp");
+  updatePlaceView("sp");
+}
+function saveStockPlace() { try { localStorage.setItem("stockPlace", JSON.stringify(placeState("sp"))); } catch {} }
+function currentStockPlace() { return placeValue(placeState("sp")); }
+let stockPlaceInit = {};
+try { const v = localStorage.getItem("stockPlace"); if (v) stockPlaceInit = JSON.parse(v); } catch {}
+renderStockPlace(stockPlaceInit);
+// 切「货架/产线」、改楼栋楼层等：跟录入页一样的交互，只是范围限定在盘点这个框里，不会互相干扰
+$("stockPlaceWrap").addEventListener("click", e => {
+  const b = e.target.closest("#sp_mode button"); if (!b) return;
+  const shelf = b.dataset.m === "shelf";
+  $("sp_mode").dataset.mode = b.dataset.m;
+  for (const x of $("sp_mode").children) x.classList.toggle("on", x === b);
+  $("sp_shelf").classList.toggle("hidden", !shelf);
+  $("sp_line").classList.toggle("hidden", shelf);
+  updatePlaceView("sp"); saveStockPlace();
+});
+$("stockPlaceWrap").addEventListener("input", () => { updatePlaceView("sp"); saveStockPlace(); });
+
+// 同一个条码在「待导出」里已经有一条了：当作重新盘到（更新位置和时间），不再重复出一行
+async function recordStock(barcode, line) {
+  barcode = String(barcode || "").trim();
+  if (!barcode) return;
+  const all = await allStock();
+  const dup = all.find(r => r.barcode === barcode && !r.exported);
+  try {
+    if (dup) {
+      await putStock({ ...dup, line: line || dup.line, time: Date.now() });
+      toast(`「${barcode}」已经扫过，位置已更新`);
+    } else {
+      await putStock({ barcode, line, time: Date.now(), exported: false });
+      toast("已扫到：" + barcode);
+    }
+  } catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
+  refreshStockList(); refreshStockCount(); refreshStockChips();
+}
+$("stockCode").addEventListener("input", e => {   // 条码只有英文字母和数字
+  if (!e.isComposing) e.target.value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+});
+$("stockCode").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const code = $("stockCode").value.trim(); $("stockCode").value = "";
+  if (!code) return;
+  const p = currentStockPlace();
+  if (p.error) { toast(p.error); return; }
+  recordStock(code, p.value);
+});
+
+// 拍照连续扫码：不像录入页那样扫一下就关掉，这里一直开着，扫到一个记一条，直到点「完成」
+// 扫描全屏时不放整套选择器（太占地方），只显示当前位置；要改位置就点「完成」回主页面改，再重新开始扫
+let stockReader = null, lastStock = { code: "", t: 0 };
+async function startStockScan() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("需要用 https 网址打开才能拍照扫码，可以先用扫码枪或手动输入"); return; }
+  try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
+  const Z = window.ZXing, F = Z.BarcodeFormat, hints = new Map();
+  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.ITF, F.DATA_MATRIX]);
+  hints.set(Z.DecodeHintType.TRY_HARDER, true);
+  $("stockScanPlaceView").textContent = currentStockPlace().value || "未填位置";
+  $("stockScanMsg").textContent = "对准条码，可以连续扫，不用逐个确认";
+  $("stockScan").classList.remove("hidden");
+  stockReader = new Z.BrowserMultiFormatReader(hints, 200);
+  try {
+    await stockReader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" } } }, "stockVideo", result => {
+      if (result) onStockDecode(result.getText());
+    });
+  } catch (e) {
+    stopStockScan();
+    toast(e && e.name === "NotAllowedError" ? "没有相机权限，请在浏览器设置里允许，或手动输入" : "打不开相机，请手动输入");
+  }
+}
+function stopStockScan() {
+  if (stockReader) { try { stockReader.reset(); } catch {} stockReader = null; }
+  $("stockScan").classList.add("hidden");
+}
+function onStockDecode(text) {
+  text = String(text || "").trim(); if (!text) return;
+  const now = Date.now();
+  if (text === lastStock.code && now - lastStock.t < 1500) return;     // 同一个码短时间内多次识别，去抖，别记两条
+  lastStock = { code: text, t: now };
+  if (navigator.vibrate) navigator.vibrate(60);
+  const p = currentStockPlace();
+  if (p.error) { $("stockScanMsg").textContent = p.error; return; }    // 位置填了一半（比如选了楼栋没选楼层），先不记，提示改完整
+  $("stockScanMsg").textContent = "已扫到：" + text;
+  recordStock(text, p.value);
+}
+$("stockScanOpen").onclick = startStockScan;
+$("stockScanBtn").onclick = startStockScan;
+$("stockScanClose").onclick = stopStockScan;
+
+async function refreshStockChips() {
+  const all = await allStock();
+  const lines = [...new Set(all.map(r => r.line).filter(Boolean))].slice(-8).reverse();
+  $("stockChips").innerHTML = lines.map(l => `<button type="button" class="chip" data-l="${safe(l)}">${safe(l)}</button>`).join("");
+}
+// 点最近用过的位置：直接把它拆回楼栋/楼层/货架-产线这几项，跟手填的效果一样
+$("stockChips").addEventListener("click", e => {
+  const b = e.target.closest("[data-l]"); if (!b) return;
+  renderStockPlace(parsePlace(b.dataset.l)); saveStockPlace();
+});
+async function refreshStockList() {
+  const recs = (await allStock()).sort((a, b) => b.time - a.time);
+  $("stockList").innerHTML = recs.length ? recs.map(r => {
+    const d = new Date(r.time), p2 = n => String(n).padStart(2, "0");
+    const when = `${d.getMonth() + 1}/${d.getDate()}<br>${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    return `<div class="item"><div class="t"><div class="n">${r.exported ? '<span class="tag done">已导出</span>' : ""}<span data-raw>${safe(r.barcode)}</span></div><div class="s" data-raw>${safe(r.line || "未填位置")}</div></div><div class="when">${when}</div><button class="btn ghost" data-delstock="${r.id}" style="padding:4px 10px;font-size:12px;flex:none">删除</button></div>`;
+  }).join("") : `<div class="empty">还没有记录</div>`;
+}
+$("stockList").addEventListener("click", async e => {
+  const b = e.target.closest("[data-delstock]"); if (!b) return;
+  await delStock(Number(b.dataset.delstock)); refreshStockList(); refreshStockCount();
+});
+async function refreshStockCount() {
+  const all = await allStock(), fresh = all.filter(r => !r.exported).length;
+  $("stockInfo").textContent = all.length ? `共 ${all.length} 条，待导出 ${fresh}` : "还没有记录";
+}
+
+function buildStockCsv(recs) {
+  const p2 = n => String(n).padStart(2, "0"), enc = new TextEncoder();
+  const cols = ["条码", "位置", "扫描时间"];
+  const lines = [cols.map(csvCell).join(",")];
+  for (const r of recs) {
+    const d = new Date(r.time);
+    const ts = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+    lines.push([r.barcode, r.line || "", ts].map(csvCell).join(","));
+  }
+  // UTF-8 带 BOM：手机自带的「文件」App 和电脑 Excel 打开都不乱码；表头「条码」「位置」跟电脑端「导入手持端文件」认的列名一致，能直接导入
+  return new Blob([enc.encode("﻿" + lines.join("\r\n") + "\r\n")], { type: "text/csv" });
+}
+async function doStockExport() {
+  const recs = (await allStock()).filter(r => !r.exported).sort((a, b) => a.time - b.time);
+  if (!recs.length) { toast("没有待导出的记录"); return; }
+  const blob = buildStockCsv(recs), name = `盘点_${stamp()}.csv`;
+  const file = new File([blob], name, { type: "text/csv" });
+  pending = { kind: "stock", ids: recs.map(r => r.id), blob, file, name,
+    canShare: !!(navigator.canShare && navigator.canShare({ files: [file] })) };
+  $("sheetInfo").textContent = `${recs.length} 条记录` + (pending.canShare ? "" : "。此环境不支持直接分享，请点「保存到手机」，再打开微信自己发一条消息（比如发给「文件传输助手」），点「+」选「文件」找到它发送");
+  openExportSheet();
+}
+
+// 每台都不一样的项：同款连续录入时不沿用
+const UNIQUE =["设备编号", "治具编号", "物品编号", "出厂编号", "资产编号", "标签编号"];
+
+// 把「V3-2F-M-3-1」/「V3-2F-FHA-01」拆回选择框的各项
+function parsePlace(text) {
+  if (TREE) return text ? { lib: text } : undefined;
+  const m = /^V(\d+)-(\d+)F-(.+)$/.exec(text || "");
+  if (!m) return undefined;
+  const s = /^([A-Z])-(\d+)-(\d+)$/.exec(m[3]);
+  return s ? { b: m[1], f: m[2], mode: "shelf", z: s[1], r: s[2], l: s[3] } : { b: m[1], f: m[2], mode: "line", n: m[3] };
+}
+// 以某条记录为模板新增：带入除编号外的全部信息，只需改编号、拍照
+function copyRec(r) {
+  type = r.type; extra = {};
+  for (const k of Object.keys(kept)) if (k.startsWith(type)) delete kept[k];
+  for (const f of TYPES[type].fields) {
+    if (f.place) kept[type + "place"] = parsePlace(r.data[f.k]);
+    else if (!UNIQUE.includes(f.k)) kept[type + f.k] = r.data[f.k];
+  }
+  setPhoto(null);
+  document.querySelector('#tabs [data-tab="new"]').click();
+  renderTypes(); renderForm();
+  $("main").scrollTo({ top: 0 });
+  toast("已带入这条的信息，改一下编号、拍照就能保存");
+}
+
+// ---- 记录列表 -------------------------------------------------------------------------
+const urls = [];
+const sel = new Set();          // 列表里勾选的记录（含已导出的），导出时优先按勾选来
+let listIds = [];
+function updateSel() {
+  const all = listIds.length > 0 && listIds.every(id => sel.has(id));
+  $("selAll").textContent = all ? "取消全选" : "全选";
+  $("selInfo").textContent = sel.size ? `已选 ${sel.size} 条` : "不选则只导出「待导出」的；勾选后可重复导出已导出的";
+  $("export").textContent = sel.size ? `导出所选（${sel.size}）` : "导出文件";
+}
+async function renderList() {
+  urls.splice(0).forEach(u => URL.revokeObjectURL(u));
+  const recs = (await allRecs()).sort((a, b) => b.created - a.created);
+  listIds = recs.map(r => r.id);
+  for (const id of [...sel]) if (!listIds.includes(id)) sel.delete(id);
+  setTimeout(updateSel, 0);
+  $("list").innerHTML = recs.length ? recs.map(r => {
+    const def = TYPES[r.type];
+    const name = displayName(def, r.data);
+    const code = r.data[def.fields[0].k], serial = r.data["出厂编号"];
+    const line2 = [code || "自动编号", serial ? "SN " + serial : ""].filter(Boolean).join(" · ");
+    const place = r.data["库位"] || r.data["位置"];
+    const line3 = [r.data["型号"] || r.data["规格"], T(r.data["类别"] || ""), place].filter(Boolean).join(" · ");
+    const pic = recPhoto(r, recs);        // 同型号共用照片：没拍的用同型号那张，淡色显示
+    let img = `<div class="ph"></div>`;
+    if (pic.blob) { const u = URL.createObjectURL(pic.blob); urls.push(u); img = `<img src="${u}" class="${pic.shared ? "shared" : ""}" alt="">`; }
+    const d = new Date(r.created), p2 = n => String(n).padStart(2, "0");
+    const when = `${d.getMonth() + 1}/${d.getDate()}<br>${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    return `<div class="item" data-open="${r.id}"><span class="ck" data-sel="${r.id}"><input type="checkbox"${sel.has(r.id) ? " checked" : ""}></span>${img}<div class="t"><div class="n"><span class="tag">${def.label}</span>${r.exported ? '<span class="tag done">已导出</span>' : ""}<span data-raw>${safe(name)}</span></div><div class="s code" data-raw>${safe(line2)}</div><div class="s" data-raw>${safe(line3)}</div></div><div class="when">${when}</div></div>`;
+  }).join("") : `<div class="empty">还没有记录</div>`;
+}
+// 这条记录的照片：自己有就用自己的，没有就用同型号（同类）里有照片的那条
+function recPhoto(r, recs) {
+  if (r.photo) return { blob: r.photo, shared: false };
+  const m = r.data["型号"];
+  if (m) { const o = recs.find(x => x.photo && x.type === r.type && modelKey(x.type, x.data["型号"]) === modelKey(r.type, m)); if (o) return { blob: o.photo, shared: true }; }
+  return { blob: null, shared: false };
+}
+
+// ---- 详情：点一条记录看全部内容，可编辑 / 复制 / 删除 -----------------------------------
+const dUrls = [];
+async function openDetail(id) {
+  const recs = await allRecs(), r = recs.find(x => x.id === id); if (!r) return;
+  const def = TYPES[r.type];
+  dUrls.splice(0).forEach(u => URL.revokeObjectURL(u));
+  const fig = (blob, label) => { const u = URL.createObjectURL(blob); dUrls.push(u); return `<figure><img src="${u}" alt="">${label}</figure>`; };
+  const pic = recPhoto(r, recs);
+  let photos = pic.blob ? fig(pic.blob, pic.shared ? "同型号照片" : "照片") : "";
+  for (const k of def.extraPhotos || []) if (xget(r, k)) photos += fig(xget(r, k), k);
+  const rows = displayFields(def).filter(f => r.data[f.k]).map(f => `<div class="k">${f.k}</div><div class="v"${f.opts ? "" : " data-raw"}>${safe(r.data[f.k])}</div>`).join("");
+  const when = new Date(r.created).toLocaleString("zh-CN", { hour12: false });
+  $("dTitle").innerHTML = `<span>${def.label}</span> · <span data-raw>${safe(displayName(def, r.data))}</span>`;
+  $("dBody").innerHTML = (photos ? `<div class="dphotos">${photos}</div>` : "") +
+    `<div class="dgrid">${rows}<div class="k">录入时间</div><div class="v">${when}</div><div class="k">状态</div><div class="v">${r.exported ? "已导出" : "待导出"}</div></div>`;
+  $("detail").dataset.id = id;
+  $("detail").classList.remove("hidden");
+}
+function closeDetail() { $("detail").classList.add("hidden"); dUrls.splice(0).forEach(u => URL.revokeObjectURL(u)); }
+async function detailRec() { return (await allRecs()).find(x => x.id === Number($("detail").dataset.id)); }
+
+// ---- 编辑：把这条记录放回录入表单，改完点「保存修改」 ---------------------------------------
+let editingId = null;
+function setEditUi(on, name) {
+  $("editBar").classList.toggle("hidden", !on);
+  if (on) $("editName").textContent = name;
+  $("save").textContent = on ? "保存修改" : "保存，录下一个";
+  $("clearForm").classList.toggle("hidden", on);
+  $("types").classList.toggle("hidden", on);
+}
+function clearKept() { for (const k of Object.keys(kept)) delete kept[k]; }
+function editRec(r) {
+  closeDetail();
+  editingId = r.id; type = r.type; extra = { ...(r.extra || {}) };
+  if (extra["标签照片"] && !extra["设备标签照片"]) { extra["设备标签照片"] = extra["标签照片"]; delete extra["标签照片"]; }
+  clearKept();
+  for (const f of TYPES[type].fields) {
+    if (f.place) kept[type + "place"] = parsePlace(r.data[f.k]);
+    else kept[type + f.k] = r.data[f.k];
+  }
+  document.querySelector('#tabs [data-tab="new"]').click();
+  renderTypes(); renderForm(); setPhoto(r.photo || null); updatePhotoHint();
+  setEditUi(true, displayName(TYPES[type], r.data));
+  $("main").scrollTo({ top: 0 });
+}
+function leaveEdit() {
+  editingId = null; extra = {}; clearKept(); setPhoto(null);
+  setEditUi(false); renderForm();
+}
+async function refreshCount() {
+  const recs = await allRecs();
+  const fresh = recs.filter(r => !r.exported).length;
+  $("count").textContent = `共 ${recs.length} 条，待导出 ${fresh}`;
+}
+
+// ---- 导出：一个 zip，里面是每类一张 CSV + photos 文件夹 --------------------------------
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(b) { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+
+// 不压缩（JPEG 本身已压缩），文件名按 UTF-8 存，解压后中文不会乱码
+function makeZip(files) {
+  const enc = new TextEncoder(), chunks = [], central = [];
+  const d = new Date();
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), crc = crc32(f.data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, time, true); h.setUint16(12, date, true); h.setUint32(14, crc, true);
+    h.setUint32(18, f.data.length, true); h.setUint32(22, f.data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+    chunks.push(new Uint8Array(h.buffer), name, f.data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, time, true); c.setUint16(14, date, true); c.setUint32(16, crc, true);
+    c.setUint32(20, f.data.length, true); c.setUint32(24, f.data.length, true); c.setUint16(28, name.length, true);
+    c.setUint32(42, offset, true);
+    central.push(new Uint8Array(c.buffer), name);
+    offset += 30 + name.length + f.data.length;
+  }
+  const size = central.reduce((n, p) => n + p.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...chunks, ...central, new Uint8Array(end.buffer)], { type: "application/zip" });
+}
+const csvCell = v => /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+
+const stamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+
+async function buildPackage() {
+  const recs = (await allRecs()).filter(r => sel.size ? sel.has(r.id) : !r.exported).sort((a, b) => a.created - b.created);
+  if (!recs.length) return null;
+  const enc = new TextEncoder(), files = [], t = stamp();
+  let n = 0;
+  for (const [key, def] of Object.entries(TYPES)) {
+    const mine = recs.filter(r => r.type === key);
+    if (!mine.length) continue;
+    const extras = def.extraPhotos || [];
+    const cols = [...def.fields.map(f => f.k), PHOTO_COL, ...extras];
+    const lines = [cols.map(csvCell).join(",")];
+    for (const r of mine) {
+      let file = "";
+      if (r.photo) {
+        file = `photos/${key}_${t}_${String(++n).padStart(3, "0")}.jpg`;
+        files.push({ name: file, data: new Uint8Array(await r.photo.arrayBuffer()) });
+      }
+      const more = [];
+      for (const k of extras) {
+        const blob = xget(r, k);
+        if (!blob) { more.push(""); continue; }
+        const name = `photos/${key}_${t}_${String(++n).padStart(3, "0")}_${{ "设备标签照片": "label", "资产标签照片": "asset", "铭牌照片": "plate" }[k]}.jpg`;
+        files.push({ name, data: new Uint8Array(await blob.arrayBuffer()) });
+        more.push(name);
+      }
+      lines.push([...def.fields.map(f => r.data[f.k] || ""), file, ...more].map(csvCell).join(","));
+    }
+    // UTF-8 带 BOM：Excel 打开不乱码，电脑端导入也能识别
+    files.unshift({ name: `${def.label}.csv`, data: enc.encode("﻿" + lines.join("\r\n") + "\r\n") });
+  }
+  return { blob: makeZip(files), name: `采集_${t}.zip`, ids: recs.map(r => r.id), photos: n };
+}
+
+async function markExported(ids) {
+  const recs = await allRecs();
+  for (const r of recs) if (ids.includes(r.id)) { r.exported = true; await putRec(r); }
+  refreshCount(); if (!$("pageList").classList.contains("hidden")) renderList();
+}
+
+// 先生成文件并弹出选择框；真正的「分享」要由用户再点一次按钮触发，
+// 否则 iPhone 会因为不是直接点击而拒绝调用分享。
+const IN_WECHAT = /MicroMessenger/i.test(navigator.userAgent);
+let pending = null;
+// 微信内置浏览器不支持下载、也不支持 Web Share，之前「分享」「保存」两个按钮在微信里还留着能点，
+// 点了却什么都不会发生（原地失败），容易让人以为是卡住了——这里直接把两个按钮换成提示，别让人白点
+function openExportSheet() {
+  $("wxTip").classList.toggle("hidden", !IN_WECHAT);
+  // 「分享」按钮点了必失败就别露出来——安卓和 iPhone 的浏览器常常不让分享 zip 这种文件
+  // （只对图片/视频/PDF 等少数类型开放），点了也就是弹个「分享失败」，不如直接引导去保存。
+  $("doShare").classList.toggle("hidden", IN_WECHAT || !pending.canShare);
+  $("doSave").classList.toggle("hidden", IN_WECHAT);
+  $("mask").classList.remove("hidden");
+}
+async function doItemExport() {
+  const pkg = await buildPackage();
+  if (!pkg) { toast("没有待导出的记录"); return; }
+  const file = new File([pkg.blob], pkg.name, { type: "application/zip" });
+  pending = { kind: "item", pkg, file, blob: pkg.blob, name: pkg.name,
+    canShare: !!(navigator.canShare && navigator.canShare({ files: [file] })) };
+  $("sheetInfo").textContent = `${pkg.ids.length} 条记录，${pkg.photos} 张照片，${(pkg.blob.size / 1048576).toFixed(1)} MB` +
+    (pending.canShare ? "" : "。此环境不支持直接分享，请点「保存到手机」，再打开微信自己发一条消息（比如发给「文件传输助手」），点「+」选「文件」找到它发送");
+  openExportSheet();
+}
+function closeSheet() { $("mask").classList.add("hidden"); pending = null; }
+async function finish(how) {
+  const p = pending; closeSheet();
+  if (p.kind === "stock") {
+    for (const id of p.ids) { const r = (await allStock()).find(x => x.id === id); if (r) { r.exported = true; await putStock(r); } }
+    refreshStockList(); refreshStockCount();
+    toast(`${how}：${p.ids.length} 条`);
+    return;
+  }
+  sel.clear();
+  await markExported(p.pkg.ids);
+  updateSel();
+  toast(`${how}：${p.pkg.ids.length} 条，${p.pkg.photos} 张照片`);
+}
+async function shareNow() {
+  if (!pending) return;
+  if (!navigator.share) { toast("此浏览器或连接方式不支持分享，请改用「保存到手机」"); return; }
+  try { await navigator.share({ files: [pending.file], title: pending.name }); }
+  catch (e) { if (e.name !== "AbortError") toast(`分享失败（${e.name || e}），请改用「保存到手机」`); return; }
+  finish("已分享");
+}
+function saveNow() {
+  if (!pending) return;
+  if (IN_WECHAT) { toast("微信里不能下载，请点右上角「···」→「在浏览器打开」后再导出"); return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(pending.blob); a.download = pending.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  finish("已保存");
+}
+
+// ---- 事件 -----------------------------------------------------------------------------
+$("tabs").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const tab = b.dataset.tab;
+  for (const x of $("tabs").children) x.classList.toggle("on", x === b);
+  $("pageNew").classList.toggle("hidden", tab !== "new");
+  $("pageList").classList.toggle("hidden", tab !== "list");
+  $("pageStock").classList.toggle("hidden", tab !== "stock");
+  $("pageMap").classList.toggle("hidden", tab !== "map");
+  $("main").classList.toggle("map-mode", tab === "map");
+  document.querySelector("body > .bar").classList.toggle("hidden", tab === "map");
+  $("save").classList.toggle("hidden", tab !== "new");
+  $("clearForm").classList.toggle("hidden", tab !== "new" || !!editingId);
+  $("export").classList.toggle("hidden", tab === "stock");
+  $("stockScanBtn").classList.toggle("hidden", tab !== "stock");
+  $("stockExport").classList.toggle("hidden", tab !== "stock");
+  if (tab === "list") renderList();
+  if (tab === "stock") { refreshStockList(); refreshStockCount(); refreshStockChips(); }
+  if (tab === "map") enterMap("browse");
+});
+$("types").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  type = b.dataset.type; extra = {}; renderTypes(); renderForm();
+});
+$("fields").addEventListener("click", e => {
+  const b = e.target.closest("#p_mode button"); if (!b) return;
+  const shelf = b.dataset.m === "shelf";
+  $("p_mode").dataset.mode = b.dataset.m;
+  for (const x of $("p_mode").children) x.classList.toggle("on", x === b);
+  $("p_shelf").classList.toggle("hidden", !shelf);
+  $("p_line").classList.toggle("hidden", shelf);
+  updatePlaceView();
+});
+$("fields").addEventListener("input", e => {
+  const el = e.target, k = el.id && el.id.slice(2);
+  if (el.dataset && el.dataset.code && !e.isComposing) { const c = codeClean(k, el.value); if (c !== el.value) el.value = c; }
+  updatePlaceView(); updatePhotoHint(); syncFilled(); });
+$("fields").addEventListener("change", () => { toggleWhen(); syncFilled(); });
+// 日期框：没点之前是普通文字框（好放名称），点进去才变成日期选择
+$("fields").addEventListener("focusin", e => {
+  const el = e.target;
+  if (el.dataset && el.dataset.date && el.type === "text") { el.type = "date"; try { el.showPicker && el.showPicker(); } catch {} }
+});
+$("fields").addEventListener("focusout", e => {
+  const el = e.target;
+  if (el.dataset && el.dataset.date && el.type === "date" && !el.value) el.type = "text";
+  syncFilled();
+});
+$("fields").addEventListener("click", e => {
+  const b = e.target.closest("[data-scan]"); if (b) startScan(b.dataset.scan);
+});
+$("scanCancel").onclick = stopScan;
+$("xphotos").addEventListener("click", e => {
+  const b = e.target.closest("[data-x]"); if (!b) return;
+  extraTarget = b.dataset.x; $("xcam").click();
+});
+$("xcam").onchange = async e => {
+  const file = e.target.files[0]; e.target.value = "";
+  if (!file || !extraTarget) return;
+  const k = extraTarget;
+  try { extra[k] = await shrink(file, 1600); showExtra(k); } catch { toast("这张图片读不出来，请重拍"); }
+};
+$("shoot").onclick = () => $("cam").click();
+$("cam").onchange = onFile;
+// 点缩略图放大看，再点一下关闭
+document.addEventListener("click", e => {
+  const img = e.target.closest(".pv img, .dphotos img");
+  if (img) { $("lbImg").src = img.src; $("lb").classList.remove("hidden"); }
+});
+$("lb").onclick = () => { $("lb").classList.add("hidden"); $("lbImg").removeAttribute("src"); };
+$("save").onclick = () => save().catch(e => toast("保存失败：" + (e && e.message ? e.message : e)));
+$("export").onclick = () => doItemExport().catch(() => toast("导出失败"));
+$("stockExport").onclick = () => doStockExport().catch(() => toast("导出失败"));
+// 清空当前填写的内容（信息、照片、沿用下来的内容全部清掉）
+$("clearForm").onclick = () => {
+  const filled = [...$("fields").querySelectorAll("input,select,textarea")].some(e => e.value) || photo || Object.keys(extra).length;
+  if (filled && !confirm(T("清空当前填写的内容？"))) return;
+  for (const k of Object.keys(kept)) if (k.startsWith(type)) delete kept[k];
+  extra = {}; setPhoto(null); renderForm();
+  $("main").scrollTo({ top: 0 });
+  toast("已清空");
+};
+$("doShare").onclick = shareNow;
+$("doSave").onclick = saveNow;
+$("doCancel").onclick = closeSheet;
+$("selAll").onclick = () => {
+  const all = listIds.length > 0 && listIds.every(id => sel.has(id));
+  sel.clear(); if (!all) listIds.forEach(id => sel.add(id));
+  renderList();
+};
+$("list").addEventListener("click", e => {
+  const c = e.target.closest("[data-sel]");
+  if (c) {
+    const id = Number(c.dataset.sel), box = c.querySelector("input");
+    if (e.target !== box) box.checked = !box.checked;
+    box.checked ? sel.add(id) : sel.delete(id);
+    updateSel(); return;
+  }
+  const b = e.target.closest("[data-open]"); if (b) openDetail(Number(b.dataset.open));
+});
+$("dClose").onclick = closeDetail;
+$("detail").addEventListener("click", e => { if (e.target === $("detail")) closeDetail(); });
+$("dEdit").onclick = async () => { const r = await detailRec(); if (r) editRec(r); };
+$("dCopy").onclick = async () => { const r = await detailRec(); if (r) { closeDetail(); copyRec(r); } };
+$("dDel").onclick = async () => {
+  const r = await detailRec(); if (!r) return;
+  if (!confirm(T("删除这条记录？删除后不能恢复。"))) return;
+  await delRec(r.id); closeDetail(); renderList(); refreshCount(); refreshModelPhotos();
+  if (editingId === r.id) leaveEdit();
+};
+$("editCancel").onclick = () => { leaveEdit(); document.querySelector('#tabs [data-tab="list"]').click(); };
+$("clearDone").onclick = async () => {
+  const done = (await allRecs()).filter(r => r.exported);
+  if (!done.length) { toast("没有已导出的记录"); return; }
+  if (!confirm(T(`删除已导出的 ${done.length} 条记录（含照片）？删除后不能恢复。`))) return;
+  for (const r of done) await delRec(r.id);
+  renderList(); refreshCount(); refreshModelPhotos();
+};
+
+try { const m = localStorage.getItem("keepMode"); if (m) $("keepMode").value = m; } catch {}
+$("langBtn").onclick = () => {
+  snapshotForm();
+  lang = lang === "vi" ? "zh" : "vi";
+  try { localStorage.setItem("lang", lang); } catch {}
+  closeDetail();
+  renderForm();
+  applyLang();
+  refreshMapLang();
+  if (!$("pageList").classList.contains("hidden")) renderList();
+};
+renderTypes(); renderForm(); refreshCount(); refreshModelPhotos(); applyLang(); setupMap();
+refreshStockCount(); refreshStockChips();
+if (!window.isSecureContext) $("insecureBar").classList.remove("hidden");
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
