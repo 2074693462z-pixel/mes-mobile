@@ -1556,19 +1556,31 @@ function cameraErrorMsg(e) {
   if (n === "NotReadableError") return "相机被别的程序占用了，请关掉后重试";
   return "打不开相机，请手动输入" + (n ? `（${n}）` : "");   // 带上错误名，方便反馈问题
 }
-// zxing 处理视频时用一个全局计数器 FRAME_INDEX 隔帧交替「正常 / 反色」（为了也能读反色码），
-// 但开了 TRY_HARDER 的一维条码读取器每帧失败后会再旋转一次图像，又把这个计数器翻一次——
-// 结果第一帧起每一帧都落在「反色」上，黑条白底的条码永远读不出来（所有手机都扫不出）。
-// 所以每次识别前手动定好：每 4 帧里 3 帧正常、1 帧反色。
-function pinFrameParity(rd) {
-  const S = window.ZXing.HTMLCanvasElementLuminanceSource, decode = rd.decode.bind(rd);
-  if (!S || !("FRAME_INDEX" in S)) return;
+// 不用 zxing 自带的「整帧视频」识别，改成自己从每一帧里截图再交给它认，原因有两个：
+// 1) 它处理视频时用一个全局计数器 FRAME_INDEX 隔帧交替「正常 / 反色」，而开了 TRY_HARDER 的一维条码读取器
+//    每帧失败后会再旋转一次图像、又把这个计数器翻一次——结果第一帧起每一帧都是「反色」，
+//    黑条白底的条码永远读不出来（所有手机都扫不出）。自己截图就不经过这个计数器。
+// 2) 整帧里除了条码还有大片金属 / 板子时，它判断黑白会被带偏（真实标签实测：同一个条码整帧读不出，
+//    截取中间条带就能读出，反过来也有）。所以每次换一种截法轮着试：整帧、三种中间条带、整帧反色。
+const ROI_CYCLE = [[0, 0, 1, 1, false], [0.1, 0.3, 0.8, 0.4, false], [0.2, 0.35, 0.6, 0.3, false], [0.05, 0.375, 0.9, 0.25, false], [0, 0, 1, 1, true]];
+function useRoiDecode(rd) {
+  const Z = window.ZXing, cv = document.createElement("canvas"), g = cv.getContext("2d", { willReadFrequently: true });
   let n = 0;
-  rd.decode = el => { S.FRAME_INDEX = n++ % 4 === 3; return decode(el); };   // 库会先翻转再用：设成 true → 这一帧反色，false → 正常
+  rd.timeBetweenDecodingAttempts = 100;     // 没扫到时库默认 0 毫秒就重试，手机会一直满负荷
+  rd.decode = video => {
+    const [fx, fy, fw, fh, invert] = ROI_CYCLE[n++ % ROI_CYCLE.length];
+    const sw = Math.round(video.videoWidth * fw), sh = Math.round(video.videoHeight * fh);
+    if (!sw || !sh) throw new Z.NotFoundException();      // 画面还没出来
+    cv.width = sw; cv.height = sh;
+    g.drawImage(video, Math.round(video.videoWidth * fx), Math.round(video.videoHeight * fy), sw, sh, 0, 0, sw, sh);
+    let src = new Z.HTMLCanvasElementLuminanceSource(cv);
+    if (invert) src = src.invert();
+    return rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src)));
+  };
 }
 // 让 rd 开始用相机扫；画面出来（resolve）之前如果太久，就在 msgEl 里提示点屏幕
 async function openCamera(rd, videoId, msgEl, onText) {
-  pinFrameParity(rd);
+  useRoiDecode(rd);
   const orig = msgEl.textContent, timer = setTimeout(() => { msgEl.textContent = CAM_HINT; }, 3000);
   try {
     await rd.decodeFromConstraints(CAM_CONSTRAINTS, videoId, result => { if (result) onText(result.getText()); });
