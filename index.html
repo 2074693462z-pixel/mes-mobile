@@ -334,7 +334,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
 <div class="scan hidden" id="scan">
   <video id="scanVideo" playsinline muted></video>
   <div class="frame"></div>
-  <p>把条码或二维码放进框里，自动识别</p>
+  <p id="scanMsg">把条码或二维码放进框里，自动识别</p>
   <button class="btn" id="scanCancel" type="button">取消</button>
 </div>
 <div class="scan hidden" id="stockScan">
@@ -1214,6 +1214,11 @@ const VI = {
  "扫码组件没加载出来，请联网打开一次页面": "Chưa tải được thành phần quét, hãy mở trang khi có mạng một lần",
  "没有相机权限，请在浏览器设置里允许，或手动输入": "Chưa có quyền camera, hãy cho phép trong cài đặt trình duyệt, hoặc nhập tay",
  "打不开相机，请手动输入": "Không mở được camera, hãy nhập tay",
+ "需要用 https 网址打开才能拍照扫码，可以先用扫码枪或手动输入": "Cần mở bằng địa chỉ https mới quét bằng camera được, có thể dùng súng quét hoặc nhập tay",
+ "这个软件内置的浏览器不能用相机，请点右上角「···」用 Safari / Chrome 打开": "Trình duyệt tích hợp trong ứng dụng này không dùng được camera, hãy bấm 「···」 góc phải rồi mở bằng Safari / Chrome",
+ "这个浏览器不支持相机扫码，请改用 Safari / Chrome": "Trình duyệt này không hỗ trợ quét bằng camera, hãy dùng Safari / Chrome",
+ "相机被别的程序占用了，请关掉后重试": "Camera đang bị ứng dụng khác dùng, hãy tắt đi rồi thử lại",
+ "画面没出来？点一下屏幕": "Không thấy hình? Hãy chạm vào màn hình",
  "这张图片读不出来，请重拍": "Không đọc được ảnh này, hãy chụp lại",
  "没有待导出的记录": "Không có bản ghi nào chờ xuất",
  "分享失败，请改用「保存到手机」": "Chia sẻ thất bại, hãy dùng 「Lưu vào điện thoại」",
@@ -1237,6 +1242,7 @@ const PATTERNS = [
   [/^请填写「(.+)」$/, m => `Vui lòng nhập 「${tr(m[1])}」`],
   [/^「(.+)」(.+) 已经录过了$/, m => `「${tr(m[1])}」${m[2]} đã được nhập rồi`],
   [/^已扫到：(.+)$/, m => `Đã quét: ${m[1]}`],
+  [/^打不开相机，请手动输入（(\w+)）$/, m => `Không mở được camera, hãy nhập tay (${m[1]})`],
   [/^(已分享|已保存)：(\d+) 条，(\d+) 张照片$/, m => `${m[1] === "已分享" ? "Đã chia sẻ" : "Đã lưu"}: ${m[2]} mục, ${m[3]} ảnh`],
   [/^共 (\d+) 条，待导出 (\d+)$/, m => `Tổng ${m[1]} mục, chờ xuất ${m[2]}`],
   [/^(\d+) 条记录，(\d+) 张照片，([\d.]+) MB(。.*)?$/, m => `${m[1]} bản ghi, ${m[2]} ảnh, ${m[3]} MB` + (m[4] ? ". Môi trường này không hỗ trợ chia sẻ trực tiếp, hãy lưu trước rồi gửi từ ứng dụng Tệp" : "")],
@@ -1526,23 +1532,68 @@ function loadZXing() {
     const s = document.createElement("script"); s.src = "zxing.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s);
   });
 }
-let reader = null, scanTarget = "";
-async function startScan(id) {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("需要用 https 网址打开才能扫码"); return; }
-  try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
+// iPhone 的 Safari 不指定分辨率时只给 640x480，条码在画面里太小认不出来，所以要 720p。
+// iPhone 还可能拒绝 video.play()（等相机权限弹窗时失去了「点击」这个动作；低电量模式也会），
+// 这时 ZXing 一直等「开始播放」，既没画面也不报错——所以 3 秒还没出画面就提示，点一下屏幕手动开始。
+const CAM_CONSTRAINTS = { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } };
+const CAM_HINT = "画面没出来？点一下屏幕";
+const IN_APP_BROWSER = /MicroMessenger|Zalo|FBAN|FBAV|Instagram|Line\/|DingTalk/i.test(navigator.userAgent);
+function scanHints() {
   const Z = window.ZXing, F = Z.BarcodeFormat, hints = new Map();
   hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.ITF, F.DATA_MATRIX]);
   hints.set(Z.DecodeHintType.TRY_HARDER, true);
+  return hints;
+}
+// 用不了相机时返回原因（空串 = 可以用）；微信 / Zalo / Facebook 这类软件自带的浏览器常常没有相机接口
+function cameraBlocked(insecureMsg) {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return "";
+  if (!window.isSecureContext) return insecureMsg;
+  return IN_APP_BROWSER ? "这个软件内置的浏览器不能用相机，请点右上角「···」用 Safari / Chrome 打开" : "这个浏览器不支持相机扫码，请改用 Safari / Chrome";
+}
+function cameraErrorMsg(e) {
+  const n = e && e.name;
+  if (n === "NotAllowedError" || n === "SecurityError") return "没有相机权限，请在浏览器设置里允许，或手动输入";
+  if (n === "NotReadableError") return "相机被别的程序占用了，请关掉后重试";
+  return "打不开相机，请手动输入" + (n ? `（${n}）` : "");   // 带上错误名，方便反馈问题
+}
+// zxing 处理视频时用一个全局计数器 FRAME_INDEX 隔帧交替「正常 / 反色」（为了也能读反色码），
+// 但开了 TRY_HARDER 的一维条码读取器每帧失败后会再旋转一次图像，又把这个计数器翻一次——
+// 结果第一帧起每一帧都落在「反色」上，黑条白底的条码永远读不出来（所有手机都扫不出）。
+// 所以每次识别前手动定好：每 4 帧里 3 帧正常、1 帧反色。
+function pinFrameParity(rd) {
+  const S = window.ZXing.HTMLCanvasElementLuminanceSource, decode = rd.decode.bind(rd);
+  if (!S || !("FRAME_INDEX" in S)) return;
+  let n = 0;
+  rd.decode = el => { S.FRAME_INDEX = n++ % 4 === 3; return decode(el); };   // 库会先翻转再用：设成 true → 这一帧反色，false → 正常
+}
+// 让 rd 开始用相机扫；画面出来（resolve）之前如果太久，就在 msgEl 里提示点屏幕
+async function openCamera(rd, videoId, msgEl, onText) {
+  pinFrameParity(rd);
+  const orig = msgEl.textContent, timer = setTimeout(() => { msgEl.textContent = CAM_HINT; }, 3000);
+  try {
+    await rd.decodeFromConstraints(CAM_CONSTRAINTS, videoId, result => { if (result) onText(result.getText()); });
+  } finally {
+    clearTimeout(timer);
+    if (msgEl.textContent === CAM_HINT) msgEl.textContent = orig;
+  }
+}
+for (const [box, vid] of [["scan", "scanVideo"], ["stockScan", "stockVideo"]]) {
+  $(box).addEventListener("click", () => { $(vid).play().catch(() => {}); });   // 点一下屏幕 = 一次真正的用户操作，iPhone 肯放行
+}
+
+let reader = null, scanTarget = "";
+async function startScan(id) {
+  const blocked = cameraBlocked("需要用 https 网址打开才能扫码");
+  if (blocked) { toast(blocked); return; }
+  try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
   scanTarget = id;
   $("scan").classList.remove("hidden");
-  reader = new Z.BrowserMultiFormatReader(hints, 250);
+  const rd = reader = new window.ZXing.BrowserMultiFormatReader(scanHints(), 250);
   try {
-    await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" } } }, "scanVideo", result => {
-      if (result) finishScan(result.getText());
-    });
+    await openCamera(rd, "scanVideo", $("scanMsg"), finishScan);
+    if (reader !== rd) rd.reset();           // 等相机的时候已经点了取消，别让相机在后台一直开着
   } catch (e) {
-    stopScan();
-    toast(e && e.name === "NotAllowedError" ? "没有相机权限，请在浏览器设置里允许，或手动输入" : "打不开相机，请手动输入");
+    if (reader === rd) { stopScan(); toast(cameraErrorMsg(e)); }
   }
 }
 function stopScan() {
@@ -1618,22 +1669,18 @@ $("stockCode").addEventListener("keydown", e => {
 // 扫描全屏时不放整套选择器（太占地方），只显示当前位置；要改位置就点「完成」回主页面改，再重新开始扫
 let stockReader = null, lastStock = { code: "", t: 0 };
 async function startStockScan() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("需要用 https 网址打开才能拍照扫码，可以先用扫码枪或手动输入"); return; }
+  const blocked = cameraBlocked("需要用 https 网址打开才能拍照扫码，可以先用扫码枪或手动输入");
+  if (blocked) { toast(blocked); return; }
   try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
-  const Z = window.ZXing, F = Z.BarcodeFormat, hints = new Map();
-  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.ITF, F.DATA_MATRIX]);
-  hints.set(Z.DecodeHintType.TRY_HARDER, true);
   $("stockScanPlaceView").textContent = currentStockPlace().value || "未填位置";
   $("stockScanMsg").textContent = "对准条码，可以连续扫，不用逐个确认";
   $("stockScan").classList.remove("hidden");
-  stockReader = new Z.BrowserMultiFormatReader(hints, 200);
+  const rd = stockReader = new window.ZXing.BrowserMultiFormatReader(scanHints(), 200);
   try {
-    await stockReader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" } } }, "stockVideo", result => {
-      if (result) onStockDecode(result.getText());
-    });
+    await openCamera(rd, "stockVideo", $("stockScanMsg"), onStockDecode);
+    if (stockReader !== rd) rd.reset();
   } catch (e) {
-    stopStockScan();
-    toast(e && e.name === "NotAllowedError" ? "没有相机权限，请在浏览器设置里允许，或手动输入" : "打不开相机，请手动输入");
+    if (stockReader === rd) { stopStockScan(); toast(cameraErrorMsg(e)); }
   }
 }
 function stopStockScan() {
