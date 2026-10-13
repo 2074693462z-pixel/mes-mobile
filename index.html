@@ -434,7 +434,7 @@ const TYPES = {
     { k: "类别", opts: EQUIPMENT_CATEGORIES, req: true, keep: true },
     { k: "位置", place: "line", req: true, keep: true },
     { k: "状态", opts: ["在库", "使用中", "待维修", "维修中", "报废", "损坏", "停用"], keep: true },
-    { k: "出厂编号", hint: "铭牌序列号，同型号内不可重复" },
+    { k: "出厂编号", hint: "铭牌序列号，可以重复" },
     { k: "设备功率", more: true, ph: "带单位，如 1.5kW" },
     { k: "设备电压", more: true, ph: "带单位，如 220V" },
     { k: "设备重量", more: true, ph: "带单位，如 30kg" },
@@ -1183,7 +1183,7 @@ const VI = {
  "0=不提醒": "0 = không nhắc",
  "这个库位放了多少，没有写 0": "Số lượng ở vị trí này, không có thì ghi 0",
  "初始库存必须是 0 或正整数": "Tồn ban đầu phải là 0 hoặc số nguyên dương",
- "铭牌序列号，同型号内不可重复": "số seri trên bảng tên, không trùng trong cùng model",
+ "铭牌序列号，可以重复": "số seri trên bảng tên, có thể trùng",
  "须晚于校准时间": "phải sau ngày hiệu chuẩn",
  "手持终端绑定用，可不填": "dùng gắn với thiết bị cầm tay, có thể bỏ trống",
  "带单位，如 1.5kW": "kèm đơn vị, vd 1.5kW",
@@ -1500,12 +1500,6 @@ async function save() {
     if (data[k] && old.some(r => r.id !== editingId && r.type === type && r.data[k] === data[k])) {
       toast(`「${k}」${data[k]} 已经录过了`); const el = $("f_" + k); if (el) el.focus(); return;
     }
-  }
-  // 出厂编号只在同一个型号里不能重复（和电脑端一样：不同型号可以有相同的出厂编号；大小写、空格不算不同）
-  const loose = s => String(s || "").replace(/\s+/g, "").toLowerCase();
-  if (data["出厂编号"] && old.some(r => r.id !== editingId && r.type === type && loose(r.data["出厂编号"]) === loose(data["出厂编号"])
-      && loose(r.data["型号"]) === loose(data["型号"]))) {
-    toast(`同型号里「出厂编号」${data["出厂编号"]} 已经录过了`); const el = $("f_出厂编号"); if (el) el.focus(); return;
   }
   if (editingId) {                                    // 修改已有记录：原地更新，重新标为待导出
     const prev = old.find(r => r.id === editingId);
