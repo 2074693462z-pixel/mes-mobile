@@ -406,13 +406,12 @@ const TYPES = {
     { k: "备注", area: true },
   ]},
   fixture: { label: "治具",
-    layout: ["治具编号", "治具名称", "型号", "类别", "位置", "状态", "越南文名称", "厂商", "贴标位置", "备注"],
+    layout: ["治具编号", "治具名称", "类别", "位置", "状态", "越南文名称", "厂商", "贴标位置", "备注"],
     fields: [
     // 治具只留常用的几项在前面，其余收进「更多信息」
     { k: "治具编号", hint: "留空自动生成" },
     { k: "治具名称", req: true },
     { k: "越南文名称", more: true },
-    { k: "型号", req: true },
     { k: "厂商", more: true },
     { k: "类别", opts: FIXTURE_CATEGORIES, req: true, keep: true },
     { k: "位置", place: "shelf", req: true, keep: true },
@@ -1398,7 +1397,7 @@ function fillMaker() {
 let modelPhotos = new Set();
 const modelKey = (t, m) => t + "|" + String(m || "").trim().toLowerCase();
 async function refreshModelPhotos() {
-  modelPhotos = new Set((await allRecs()).filter(r => r.photo && r.data["型号"]).map(r => modelKey(r.type, r.data["型号"])));
+  modelPhotos = new Set((await allRecs()).filter(r => r.photo && r.type !== "fixture" && r.data["型号"]).map(r => modelKey(r.type, r.data["型号"])));
   updatePhotoHint();
 }
 function photoNeeded() {
@@ -1813,7 +1812,7 @@ async function renderList() {
     const code = r.data[def.fields[0].k], serial = r.data["出厂编号"];
     const line2 = [code || "自动编号", serial ? "SN " + serial : ""].filter(Boolean).join(" · ");
     const place = r.data["库位"] || r.data["位置"];
-    const line3 = [r.data["型号"] || r.data["规格"], T(r.data["类别"] || ""), place].filter(Boolean).join(" · ");
+    const line3 = [r.type === "fixture" ? "" : r.data["型号"] || r.data["规格"], T(r.data["类别"] || ""), place].filter(Boolean).join(" · ");
     const pic = recPhoto(r, recs);        // 同型号共用照片：没拍的用同型号那张，淡色显示
     let img = `<div class="ph"></div>`;
     if (pic.blob) { const u = URL.createObjectURL(pic.blob); urls.push(u); img = `<img src="${u}" class="${pic.shared ? "shared" : ""}" alt="">`; }
@@ -1825,7 +1824,7 @@ async function renderList() {
 // 这条记录的照片：自己有就用自己的，没有就用同型号（同类）里有照片的那条
 function recPhoto(r, recs) {
   if (r.photo) return { blob: r.photo, shared: false };
-  const m = r.data["型号"];
+  const m = r.type === "fixture" ? "" : r.data["型号"];         // 治具没有型号
   if (m) { const o = recs.find(x => x.photo && x.type === r.type && modelKey(x.type, x.data["型号"]) === modelKey(r.type, m)); if (o) return { blob: o.photo, shared: true }; }
   return { blob: null, shared: false };
 }
