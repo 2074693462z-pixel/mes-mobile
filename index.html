@@ -179,6 +179,7 @@ textarea { min-height:40px; }
 #xphotos { display:contents; }
 .ptile { width:64px; text-align:center; }
 .plabel { font-size:11px; color:var(--sub); white-space:nowrap; margin-bottom:2px; }
+.plabel b { color:var(--danger); }
 .ptile .pv { width:64px; height:64px; border-radius:8px; background:var(--bg); border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:11px; overflow:hidden; }
 .ptile .pv img { width:100%; height:100%; object-fit:cover; cursor:zoom-in; }
 .pbtn { margin-top:3px; border:1px solid var(--main); background:none; color:var(--main); border-radius:6px; font-size:12px; padding:2px 0; width:100%; }
@@ -1415,6 +1416,8 @@ function photoNeeded() {
   return !(m.trim() && modelPhotos.has(modelKey(type, m)));
 }
 function updatePhotoHint() {
+  const asset = $("f_资产编号");                                       // 治具：填了资产编号才露出「资产编号照片」，并提醒要拍
+  $("xphotos").classList.toggle("hidden", type === "fixture" && !((asset && asset.value.trim()) || extra["资产编号照片"]));
   const no = !!TYPES[type].noPhoto;
   $("pv").closest(".ptile").classList.toggle("hidden", no);          // 端子不拍照
   $("photoHint").classList.toggle("hidden", no);
@@ -1437,7 +1440,7 @@ function showExtra(k) {
 }
 function renderExtra() {
   const ks = TYPES[type].extraPhotos || [];
-  $("xphotos").innerHTML = ks.map(k => `<div class="ptile"><div class="plabel">${k}</div><div class="pv" id="xpv_${k}">未拍照</div><button class="pbtn" id="xbtn_${k}" data-x="${k}" type="button">拍照</button></div>`).join("");
+  $("xphotos").innerHTML = ks.map(k => `<div class="ptile"><div class="plabel">${k}${type === "fixture" ? " <b>*</b>" : ""}</div><div class="pv" id="xpv_${k}">未拍照</div><button class="pbtn" id="xbtn_${k}" data-x="${k}" type="button">拍照</button></div>`).join("");
   ks.forEach(showExtra);
 }
 // 有 when 的字段：所依赖的那一项选到指定值才显示（如类别=测试 → 校准信息）
@@ -1512,6 +1515,7 @@ async function save() {
   if (missing) { toast(`请填写「${missing.k}」`); const el = $(missing.place ? "p_open" : "f_" + missing.k); if (el) el.focus(); return; }
   if (type === "equipment" && String(data["位置"] || "").toUpperCase().replace(/[/\s]+/g, "-").indexOf("V3-2F-模房") === 0) { toast(lang === "vi" ? "Phòng khuôn không để thiết bị" : "模房不放设备"); $("p_open").focus(); return; }
   if (data["校准时间"] && data["下次校准时间"] && data["下次校准时间"] <= data["校准时间"]) { toast("下次校准时间必须晚于校准时间"); $("f_下次校准时间").focus(); return; }
+  if (type === "fixture" && data["资产编号"] && !extra["资产编号照片"]) { toast("填了资产编号，请拍资产编号照片"); $("xbtn_资产编号照片").focus(); return; }
   if (!photo && photoNeeded()) { toast(type === "item" ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
   if ((type === "item" || type === "terminal") && !/^\d+$/.test(String(data["初始库存"]).trim())) { toast("初始库存必须是 0 或正整数"); $("f_初始库存").focus(); return; }
   // 每一行就是一台（一件），编号不能重复
