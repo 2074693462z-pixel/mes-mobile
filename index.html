@@ -1049,10 +1049,10 @@ async function allRecs() { return (await tx("records", "readonly", s => s.getAll
 const $ = id => document.getElementById(id);
 // 录入页先选房间：模房（只录端子 / 治具 / 物品，位置默认 V3-2F-模房）或其他（四类都能录，位置自己选）
 const TYPE_ORDER = ["terminal", "fixture", "item", "equipment"];
-const MOLD_TYPES = ["card", "terminal", "fixture"];
+const MOLD_TYPES = ["terminal", "fixture", "card"];
 let room = "mold";
 try { if (localStorage.getItem("room") === "other") room = "other"; } catch {}
-let type = "card";
+let type = "terminal";
 function setRoom(r) {
   room = r;
   try { localStorage.setItem("room", r); } catch {}
