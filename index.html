@@ -142,10 +142,7 @@ textarea { min-height:64px; resize:vertical; }
 .scan .frame { position:relative; width:72vw; max-width:360px; height:36vw; max-height:200px; border:3px solid #4c8dff; border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
 .scan p, .scan .btn { position:relative; margin:0; }
 .scan .btn { background:#fff; color:#111; }
-.scan video { transform-origin:center; }
-.zoombar { position:relative; display:flex; gap:8px; }
-.zoombar button { background:rgba(0,0,0,.45); color:#fff; border:1px solid rgba(255,255,255,.7); border-radius:16px; padding:6px 14px; font-size:15px; }
-.zoombar button.on { background:#fff; color:#111; }
+#camSwap { position:relative; background:rgba(0,0,0,.45); color:#fff; border:1px solid rgba(255,255,255,.7); border-radius:16px; padding:6px 14px; font-size:15px; }
 .mask { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
 .sheet { background:var(--card); width:100%; max-width:640px; border-radius:16px 16px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); }
 .sheet h2 { margin:0 0 4px; font-size:17px; }
@@ -328,7 +325,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
   <video id="scanVideo" playsinline muted></video>
   <div class="frame"></div>
   <p id="scanMsg">把条码或二维码放进框里，自动识别</p>
-  <div class="zoombar"><button type="button" data-z="1">1×</button><button type="button" data-z="2">2×</button><button type="button" data-z="3">3×</button><button type="button" id="camSwap" class="hidden">换镜头</button></div>
+  <button type="button" id="camSwap" class="hidden">换镜头</button>
   <button class="btn" id="scanCancel" type="button">取消</button>
 </div>
 <div class="mask hidden" id="detail">
@@ -1606,11 +1603,9 @@ function loadZXing() {
 // iPhone 的 Safari 不指定分辨率时只给 640x480，条码在画面里太小认不出来，所以要指定高分辨率。
 // iPhone 还可能拒绝 video.play()（等相机权限弹窗时失去了「点击」这个动作；低电量模式也会），
 // 这时 ZXing 一直等「开始播放」，既没画面也不报错——所以 3 秒还没出画面就提示，点一下屏幕手动开始。
-// 1080p：iPhone 对焦最近要 15~20 厘米，条码只能离远点拿，画面里就小，分辨率高一点才认得出。
-let camDevices = [], camIdx = -1, digZoom = 1;
-let camZoom = 2;
-try { camZoom = Number(localStorage.getItem("camZoom")) || 2; } catch {}
-const camConstraints = () => ({ audio: false, video: { ...(camIdx >= 0 ? { deviceId: { exact: camDevices[camIdx].deviceId } } : { facingMode: { ideal: "environment" } }), width: { ideal: 1920 }, height: { ideal: 1080 } } });
+// 4K：iPhone 对焦最近要 15~20 厘米，条码只能离远点拿，画面里就小；分辨率越高，截出来的那一小块越清楚（系统相机能扫出来就是因为用的是整颗传感器）。
+let camDevices = [], camIdx = -1;
+const camConstraints = () => ({ audio: false, video: { ...(camIdx >= 0 ? { deviceId: { exact: camDevices[camIdx].deviceId } } : { facingMode: { ideal: "environment" } }), width: { ideal: 3840 }, height: { ideal: 2160 } } });
 const CAM_HINT = "画面没出来？点一下屏幕";
 const IN_APP_BROWSER = /MicroMessenger|Zalo|FBAN|FBAV|Instagram|Line\/|DingTalk/i.test(navigator.userAgent);
 function scanHints() {
@@ -1636,37 +1631,44 @@ function cameraErrorMsg(e) {
 //    每帧失败后会再旋转一次图像、又把这个计数器翻一次——结果第一帧起每一帧都是「反色」，
 //    黑条白底的条码永远读不出来（所有手机都扫不出）。自己截图就不经过这个计数器。
 // 2) 整帧里除了条码还有大片金属 / 板子时，它判断黑白会被带偏（真实标签实测：同一个条码整帧读不出，
-//    截取中间条带就能读出，反过来也有）。所以每次换一种截法轮着试：整帧、三种中间条带、整帧反色。
-const ROI_CYCLE = [[0, 0, 1, 1, false], [0.1, 0.3, 0.8, 0.4, false], [0.2, 0.35, 0.6, 0.3, false], [0.05, 0.375, 0.9, 0.25, false], [0, 0, 1, 1, true]];
+//    截取中间条带就能读出，反过来也有）。所以每次换一种截法轮着试。
+// 另外条码小的时候，只截条码周围一小块比整帧好认（等于自动变焦）：蓝框里的、蓝框放大 1.6 倍的、再大的方块，都轮着试。
+// 截法 = [x, y, 宽, 高（占整帧的比例）, 是否反色]；"frame" = 蓝框所在的那一块，数字是放大倍数。
+const ROI_CYCLE = [["frame", 1.6], [0, 0, 1, 1, false], ["frame", 1], [0.1, 0.3, 0.8, 0.4, false], ["frame", 2.4], [0, 0, 1, 1, true], [0.2, 0.35, 0.6, 0.3, false], [0.05, 0.375, 0.9, 0.25, false]];
+const MAX_SIDE = 1600;                       // 整帧在 4K 下太大，缩到这个边长再认（只截一小块时不缩，保留细节）
+// 蓝框在视频画面里的位置（占整帧的比例）；视频是铺满屏幕裁切显示的（object-fit: cover），要换算
+function frameRoi(video, k) {
+  const vr = video.getBoundingClientRect(), fr = document.querySelector("#scan .frame").getBoundingClientRect();
+  const s = Math.max(vr.width / video.videoWidth, vr.height / video.videoHeight);
+  const ox = (vr.width - video.videoWidth * s) / 2, oy = (vr.height - video.videoHeight * s) / 2;
+  const cx = (fr.left + fr.width / 2 - vr.left - ox) / s, cy = (fr.top + fr.height / 2 - vr.top - oy) / s;
+  const w = fr.width * k / s, h = Math.max(fr.height * k, k > 1 ? fr.width * k * 0.6 : 0) / s;   // 放大时高度至少是宽度的 0.6，二维码是方的
+  const x = Math.max(0, cx - w / 2), y = Math.max(0, cy - h / 2);
+  return [x / video.videoWidth, y / video.videoHeight, Math.min(w, video.videoWidth - x) / video.videoWidth, Math.min(h, video.videoHeight - y) / video.videoHeight, false];
+}
 function useRoiDecode(rd) {
   const Z = window.ZXing, cv = document.createElement("canvas"), g = cv.getContext("2d", { willReadFrequently: true });
   let n = 0;
   rd.timeBetweenDecodingAttempts = 100;     // 没扫到时库默认 0 毫秒就重试，手机会一直满负荷
   rd.decode = video => {
-    let [fx, fy, fw, fh, invert] = ROI_CYCLE[n++ % ROI_CYCLE.length];
-    if (digZoom > 1) { const o = (1 - 1 / digZoom) / 2; fx = o + fx / digZoom; fy = o + fy / digZoom; fw /= digZoom; fh /= digZoom; }   // only the zoomed-in part is on screen
+    const roi = ROI_CYCLE[n++ % ROI_CYCLE.length];
+    if (!video.videoWidth) throw new Z.NotFoundException();      // 画面还没出来
+    const [fx, fy, fw, fh, invert] = roi[0] === "frame" ? frameRoi(video, roi[1]) : roi;
+    const sx = Math.round(video.videoWidth * fx), sy = Math.round(video.videoHeight * fy);
     const sw = Math.round(video.videoWidth * fw), sh = Math.round(video.videoHeight * fh);
-    if (!sw || !sh) throw new Z.NotFoundException();      // 画面还没出来
-    cv.width = sw; cv.height = sh;
-    g.drawImage(video, Math.round(video.videoWidth * fx), Math.round(video.videoHeight * fy), sw, sh, 0, 0, sw, sh);
+    if (!sw || !sh) throw new Z.NotFoundException();
+    const k = Math.min(1, MAX_SIDE / Math.max(sw, sh));
+    cv.width = Math.round(sw * k); cv.height = Math.round(sh * k);
+    g.drawImage(video, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
     let src = new Z.HTMLCanvasElementLuminanceSource(cv);
     if (invert) src = src.invert();
     return rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src)));
   };
 }
 const camTrack = v => v.srcObject && v.srcObject.getVideoTracks()[0];
-// 用镜头自带的变焦（有就用）；没有就把画面放大，识别也只取放大后看得见的那一块
-function setZoom(z) {
-  camZoom = z; try { localStorage.setItem("camZoom", z); } catch {}
-  const v = $("scanVideo"), t = camTrack(v), cap = t && t.getCapabilities && t.getCapabilities().zoom;
-  if (cap) { t.applyConstraints({ advanced: [{ zoom: Math.min(Math.max(z, cap.min), cap.max) }] }).catch(() => {}); digZoom = 1; v.style.transform = ""; }
-  else { digZoom = z; v.style.transform = z > 1 ? `scale(${z})` : ""; }
-  document.querySelectorAll(".zoombar [data-z]").forEach(b => b.classList.toggle("on", Number(b.dataset.z) === z));
-}
 async function afterCamera(v) {
   const t = camTrack(v);
   if (t) t.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
-  setZoom(camZoom);
   try {
     if (!camDevices.length) camDevices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput" && !/front|user|前置/i.test(d.label));
     const cur = t && t.getSettings && t.getSettings().deviceId;
@@ -1706,7 +1708,6 @@ async function runCamera() {
     if (reader === rd) { stopScan(); toast(cameraErrorMsg(e)); }
   }
 }
-document.querySelectorAll(".zoombar [data-z]").forEach(b => b.onclick = () => setZoom(Number(b.dataset.z)));
 $("camSwap").onclick = () => {
   if (!reader || camDevices.length < 2) return;
   camIdx = (camIdx + 1) % camDevices.length;
