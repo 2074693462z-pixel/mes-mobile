@@ -92,6 +92,8 @@ textarea { min-height:64px; resize:vertical; }
 .mapv .top b { flex:1; font-size:15px; }
 .mapv .top button { border:0; background:rgba(255,255,255,.2); color:#fff; border-radius:8px; padding:6px 12px; font-size:14px; }
 #mapPickHost { flex:1; min-height:0; display:flex; flex-direction:column; }
+#pageMap { height:100%; display:flex; flex-direction:column; }
+main#main.map-mode { padding:0; max-width:none; overflow:hidden; }
 #mapBody { flex:1; min-height:0; display:flex; flex-direction:column; position:relative; }
 .mb-search { position:relative; padding:8px 10px 0; }
 .mb-search input { padding:9px 10px; }
@@ -179,7 +181,6 @@ textarea { min-height:40px; }
 #xphotos { display:contents; }
 .ptile { width:64px; text-align:center; }
 .plabel { font-size:11px; color:var(--sub); white-space:nowrap; margin-bottom:2px; }
-.plabel b { color:var(--danger); }
 .ptile .pv { width:64px; height:64px; border-radius:8px; background:var(--bg); border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:11px; overflow:hidden; }
 .ptile .pv img { width:100%; height:100%; object-fit:cover; cursor:zoom-in; }
 .pbtn { margin-top:3px; border:1px solid var(--main); background:none; color:var(--main); border-radius:6px; font-size:12px; padding:2px 0; width:100%; }
@@ -187,34 +188,9 @@ textarea { min-height:40px; }
 .lb img { max-width:100%; max-height:100%; object-fit:contain; }
 .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
 .chip { border:1px solid var(--line); background:var(--bg); color:var(--text); border-radius:14px; padding:4px 12px; font-size:12px; }
-/* ---- 库位选择：一个格子，点开向下钻取 ---- */
-.pbox { display:block; width:100%; height:40px; text-align:left; padding:15px 24px 3px 8px; font:inherit; color:var(--text); background:var(--bg); border:1px solid var(--line); border-radius:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.pbox::after { content:"▾"; position:absolute; right:9px; top:8px; color:var(--sub); font-size:18px; line-height:1; }
-.pwin { margin:3px 0 4px; max-height:112px; overflow-y:auto; border:1px solid var(--line); border-radius:6px; background:var(--bg); padding:5px; }
-.pwin .chips { margin:0; }
-.pwin .chip { padding:6px 12px; font-size:14px; }
-.pwin .chip.act { color:var(--main); border-color:var(--main); }
-.pwin .none { color:var(--sub); font-size:13px; }
-/* 模房的「物品」= 照片卡片：先拍照，再点一下类型，选库位（页面里的编号 / 名称 / 数量都不用写） */
-.card.photo-first { display:flex; flex-direction:column; }
-.card.photo-first .ptiles { order:-1; justify-content:center; margin:2px 0 8px; }
-.card.photo-first #photoHint { order:-1; }
-.card.photo-first .ptile { width:200px; }
-.card.photo-first .ptile .pv { width:200px; height:150px; border-radius:10px; font-size:14px; }
-.card.photo-first .ptile .pv img { object-fit:contain; }
-.card.photo-first .pbtn { font-size:16px; padding:8px 0; background:var(--main); color:#fff; }
-.cchips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 8px; }
-.cchips .cc { border:1px solid var(--line); background:var(--bg); color:var(--text); border-radius:18px; padding:8px 16px; font-size:16px; }
-.cchips .cc.on { background:var(--main); border-color:var(--main); color:#fff; font-weight:600; }
-.cchips .cc.add { color:var(--main); border-style:dashed; }
-.clabel { font-size:13px; color:var(--sub); margin-top:4px; }
-.clabel b { color:var(--danger); }
-#roomMenu { position:absolute; left:10px; top:100%; z-index:8; margin-top:-6px; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.18); overflow:hidden; min-width:150px; }
-#roomMenu button { display:block; width:100%; border:0; background:none; color:var(--text); text-align:left; padding:10px 14px; font-size:15px; }
-#roomMenu button.on { color:var(--main); font-weight:600; }
-#roomMenu button + button { border-top:1px solid var(--line); }
-.parts .fl { margin-top:4px; }
-input[readonly] { background:var(--line); color:var(--sub); }
+.stockScanBar { position:relative; z-index:1; display:flex; align-items:center; gap:8px; background:rgba(0,0,0,.55); border-radius:10px; padding:8px 10px; width:calc(100% - 32px); max-width:360px; }
+.stockScanBar label { margin:0; color:#fff; font-size:12px; white-space:nowrap; }
+.stockScanBar input { background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.4); color:#fff; }
 #list { padding:2px 10px; }
 .item { padding:4px 0; gap:8px; }
 .item img, .item .ph { width:34px; height:34px; border-radius:5px; }
@@ -247,34 +223,32 @@ input[readonly] { background:var(--line); color:var(--sub); }
 header .hr { display:flex; align-items:center; gap:8px; }
 #langBtn { background:rgba(255,255,255,.2); color:#fff; border:1px solid rgba(255,255,255,.65); border-radius:12px; padding:2px 10px; font-size:12px; }
 
-/* ---- 操作按钮放顶部；底部留空，避开 Netlify 免费版右下角的浮标 ---- */
+/* ---- 操作按钮放顶部 ---- */
 .top { position:sticky; top:0; z-index:6; }
 .top header { position:static; }
 .top .bar { position:static; border-top:0; border-bottom:1px solid var(--line); padding:6px 10px; }
-body { padding-bottom:calc(96px + env(safe-area-inset-bottom)); }
 .toast { bottom:auto; top:calc(104px + env(safe-area-inset-top)); }
-.sheet { padding-bottom:calc(80px + env(safe-area-inset-bottom)); }
-.scan .btn { margin-bottom:60px; }
 
-/* ---- 整体布局：顶部固定，中间表单框内滚动，底部是按钮，再往下留一条空白（避开 Netlify 浮标）---- */
+/* ---- 整体布局：顶部固定，中间表单框内滚动，底部是按钮 ---- */
 html, body { height:100%; }
 body { display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; padding:0; }
-.top { position:relative; flex:none; }
+.top { position:static; flex:none; }
 .top #tabs { margin:6px 10px 0; }
 main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding:8px 10px; }
 .bar { position:static; flex:none; border-top:1px solid var(--line); border-bottom:0; padding:6px 10px; width:100%; max-width:640px; margin:0 auto; }
 .bar #save { flex:1.6; }
-.spacer { flex:none; height:calc(60px + env(safe-area-inset-bottom)); background:var(--card); border-top:1px solid var(--line); }
+.bar { padding-bottom:calc(6px + env(safe-area-inset-bottom)); }
 .toast { top:calc(104px + env(safe-area-inset-top)); }
 </style>
 </head>
 <body>
 <div class="top"><header><h1>物品采集</h1><div class="hr"><span id="count"></span><button id="langBtn" type="button">Tiếng Việt</button></div></header>
   <div class="seg" id="tabs">
-    <button data-tab="new" class="on"><span id="roomLabel">V3-2F-模房</span> ▾</button>
+    <button data-tab="new" class="on">录入</button>
     <button data-tab="list">已记录</button>
+    <button data-tab="stock">盘点</button>
+    <button data-tab="map">地图</button>
   </div>
-  <div id="roomMenu" class="hidden"><button type="button" data-room="mold">V3-2F-模房</button><button type="button" data-room="other">其他</button></div>
 </div>
 <main id="main">
 <div class="editbar hidden" id="insecureBar" style="margin-bottom:12px"><span>⚠️ 当前网址不是 https，拍照扫码和「分享/保存」可能用不了；请用 https 网址打开（比如部署到 Netlify 后给你的网址），或改用蓝牙扫码枪+手动输入</span></div>
@@ -282,7 +256,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
   <section id="pageNew">
     <div class="editbar hidden" id="editBar"><span>正在修改：<b id="editName" data-raw></b></span><button class="btn ghost" id="editCancel" type="button">取消</button></div>
     <div class="seg" id="types"></div>
-    <div class="card" id="entryCard">
+    <div class="card">
       <div id="fields"></div>
       <div class="ptiles">
         <div class="ptile">
@@ -314,13 +288,43 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
     </div>
   </section>
 
+  <section id="pageStock" class="hidden">
+    <div class="card">
+      <div id="stockPlaceWrap"></div>
+      <div class="chips" id="stockChips"></div>
+      <label style="margin-top:12px">条码</label>
+      <div class="withscan">
+        <input id="stockCode" placeholder="扫码枪扫描，或手动输入后回车" autocomplete="off">
+        <button class="scanbtn" id="stockScanOpen" type="button">拍照扫码</button>
+      </div>
+    </div>
+    <div class="selbar"><span id="stockInfo">还没有记录</span></div>
+    <div class="card" id="stockList"></div>
+  </section>
+
+  <section id="pageMap" class="hidden">
+    <div id="mapBody">
+      <div class="mb-search"><input id="mvQ" type="search" placeholder="搜索位置或名称，如 FHT14、仓库" autocomplete="off" enterkeyhint="search"><div class="mb-res hidden" id="mvRes"></div></div>
+      <div class="tabs" id="mvTabs"></div>
+      <div class="mvinfo" id="mvInfo"></div>
+      <div id="mvView">
+        <div id="mvStage"><img id="mvImg" alt="" draggable="false"></div>
+        <div id="mvMarks"></div>
+        <div class="mv-tag hidden" id="mvTag"></div>
+        <div class="mv-ctl"><button type="button" id="mvIn">＋</button><button type="button" id="mvOut">－</button><button type="button" id="mvFit">⤢</button><button type="button" id="mvLab">名</button></div>
+      </div>
+      <div class="mb-sheet hidden" id="mvSheet"></div>
+      <div class="foot hidden" id="mvFoot"><span class="grow"></span><button class="btn" type="button" id="mvPick" disabled>选这个位置</button></div>
+    </div>
+  </section>
 </main>
 <div class="bar">
   <button class="btn" id="save" type="button">保存，录下一个</button>
   <button class="btn ghost" id="clearForm" type="button">清空</button>
   <button class="btn ghost" id="export" type="button">导出文件</button>
+  <button class="btn hidden" id="stockScanBtn" type="button">开始扫码</button>
+  <button class="btn ghost hidden" id="stockExport" type="button">导出Excel</button>
 </div>
-<div class="spacer"></div>
 
 <div class="lb hidden" id="lb"><img id="lbImg" alt=""></div>
 <div class="scan hidden" id="scan">
@@ -328,6 +332,16 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
   <div class="frame"></div>
   <p id="scanMsg">把条码或二维码放进框里，自动识别</p>
   <button class="btn" id="scanCancel" type="button">取消</button>
+</div>
+<div class="scan hidden" id="stockScan">
+  <video id="stockVideo" playsinline muted></video>
+  <div class="frame"></div>
+  <div class="stockScanBar">
+    <label>位置</label>
+    <span id="stockScanPlaceView">未填位置</span>
+  </div>
+  <p id="stockScanMsg">对准条码，可以连续扫，不用逐个确认</p>
+  <button class="btn" id="stockScanClose" type="button">完成</button>
 </div>
 <div class="mask hidden" id="detail">
   <div class="sheet dsheet">
@@ -352,21 +366,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
 </div>
 <div class="mapv hidden" id="mapView">
   <div class="top"><b>位置地图</b><button type="button" id="mvClose">关闭</button></div>
-  <div id="mapPickHost">
-    <div id="mapBody">
-      <div class="mb-search"><input id="mvQ" type="search" placeholder="搜索位置或名称，如 FHT14、仓库" autocomplete="off" enterkeyhint="search"><div class="mb-res hidden" id="mvRes"></div></div>
-      <div class="tabs" id="mvTabs"></div>
-      <div class="mvinfo" id="mvInfo"></div>
-      <div id="mvView">
-        <div id="mvStage"><img id="mvImg" alt="" draggable="false"></div>
-        <div id="mvMarks"></div>
-        <div class="mv-tag hidden" id="mvTag"></div>
-        <div class="mv-ctl"><button type="button" id="mvIn">＋</button><button type="button" id="mvOut">－</button><button type="button" id="mvFit">⤢</button><button type="button" id="mvLab">名</button></div>
-      </div>
-      <div class="mb-sheet hidden" id="mvSheet"></div>
-      <div class="foot hidden" id="mvFoot"><span class="grow"></span><button class="btn" type="button" id="mvPick" disabled>选这个位置</button></div>
-    </div>
-  </div>
+  <div id="mapPickHost"></div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -380,14 +380,14 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
 const ITEM_CATEGORIES = ["治具", "五金", "电气", "气动", "ESD", "工具", "量具", "耗材", "配件", "劳保", "包材", "其他"];
 const UNITS = ["件", "个", "套", "对", "双", "把", "根", "条", "张", "台", "盒", "包", "卷", "米", "箱", "瓶"];
 const EQUIPMENT_CATEGORIES = ["设备", "测试", "其他"];
-const CARD_CATEGORIES = ["加工件", "电源", ...ITEM_CATEGORIES];      // 模房的物品按「类型」找；这里没有的类型点「＋ 新类型」自己加，电脑端导入时会自动加进类别列表
+const FIXTURE_CATEGORIES = ["治具", "模具", "检具", "工装", "其他"];
 const TEST_CATEGORY = "测试";          // 选了这个类别，必须填校准信息
 
 const TYPES = {
   // 字段顺序、表头与电脑端导入模板一致；more = 放进「更多信息」折叠区；when = 满足条件才显示
   // fields 的顺序 = 导出表格的列顺序（与导入模板一致）；layout = 录入页上的显示顺序，把相关的项放在一起
   item: { label: "物品",
-    layout: ["物品编号", "物品名称", "规格", "类别", "单位", "初始库存", "库位", "状态", "低库存提醒", "备注", "越南文名称"],
+    layout: ["物品编号", "物品名称", "规格", "类别", "单位", "初始库存", "低库存提醒", "库位", "状态", "备注", "越南文名称"],
     fields: [
     { k: "物品编号", hint: "留空自动生成" },
     { k: "物品名称", req: true },
@@ -395,52 +395,26 @@ const TYPES = {
     { k: "规格" },
     { k: "类别", opts: ITEM_CATEGORIES, req: true, keep: true },
     { k: "单位", opts: UNITS, keep: true },
-    { k: "低库存提醒", type: "number", hint: "0=不提醒", more: true },
+    { k: "低库存提醒", type: "number", hint: "0=不提醒" },
     { k: "库位", place: "shelf", req: true, keep: true },
     { k: "初始库存", type: "number", req: true, hint: "这个库位放了多少，没有写 0" },
     { k: "状态", opts: ["正常", "损坏", "停用"], keep: true },
     { k: "备注", area: true },
   ]},
-  // 模房的物品 = 照片卡片：拍一张照片 + 类型 + 库位，不记数量，名字可以不写（电脑端用类型当名字）；导出时和端子、其他房间的物品共用「物品」表
-  card: { label: "物品", table: "物品", cardLike: true,
-    layout: ["类别", "库位", "备注", "物品名称", "越南文名称", "物品编号"],
-    fields: [
-    { k: "物品编号", hidden: true },                                  // 留空，电脑端自动生成
-    { k: "物品名称", more: true, hint: "不写就用类型" },
-    { k: "越南文名称", more: true },
-    { k: "类别", label: "类型", chips: CARD_CATEGORIES, req: true, keep: true },
-    { k: "库位", place: "shelf", req: true, keep: true },
-    { k: "备注", area: true, hint: "选填" },
-  ]},
-  terminal: { label: "端子", table: "物品", noPhoto: true,     // 端子没有照片和条码：规格（端子料号）就是编号；和物品录进同一张表
-    layout: ["规格", "物品名称", "初始库存", "库位", "类别", "单位", "状态", "低库存提醒", "备注", "越南文名称"],
-    fields: [
-    { k: "物品编号", hidden: true },                                  // 保存时自动 = 规格
-    { k: "物品名称", def: "端子", locked: true },                     // 端子名称固定，不能改（电脑端靠名称里的「端子」认出它）
-    { k: "越南文名称", more: true },
-    { k: "规格", label: "端子料号", req: true, scan: true, plus: true, hint: "也是它的编号，如 M509200320；右边「＋」可加适用料号" },
-    { k: "适用产品料号", parts: true, hidden: true },                    // 不单独占一行：点料号右边的「＋」，一个适用料号一格；导出时用空格连起来
-    { k: "类别", opts: ITEM_CATEGORIES, def: "治具", keep: true, more: true },
-    { k: "单位", opts: UNITS, def: "个", keep: true, more: true },
-    { k: "低库存提醒", type: "number", hint: "0=不提醒", more: true },
-    { k: "库位", place: "shelf", req: true, keep: true },
-    { k: "初始库存", label: "数量", type: "number", req: true, hint: "这个库位放了多少，没有写 0" },
-    { k: "状态", opts: ["正常", "损坏", "停用"], def: "正常", keep: true, more: true },
-    { k: "备注", area: true, more: true },
-  ]},
   fixture: { label: "治具",
-    layout: ["治具编号", "资产编号", "位置", "状态", "越南文名称", "厂商", "贴标位置", "备注"],
+    layout: ["治具编号", "治具名称", "类别", "位置", "状态", "越南文名称", "厂商", "贴标位置", "备注"],
     fields: [
-    // 治具只留常用的几项在前面，其余收进「更多信息」；不填名称和类别：电脑端按编号去 MES 治具清单里对
-    { k: "治具编号", req: true },
-    { k: "资产编号" },
+    // 治具只留常用的几项在前面，其余收进「更多信息」
+    { k: "治具编号", hint: "留空自动生成" },
+    { k: "治具名称", req: true },
     { k: "越南文名称", more: true },
     { k: "厂商", more: true },
+    { k: "类别", opts: FIXTURE_CATEGORIES, req: true, keep: true },
     { k: "位置", place: "shelf", req: true, keep: true },
-    { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], def: "在库", keep: true },
+    { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], keep: true },
     { k: "贴标位置", more: true },
     { k: "备注", area: true, more: true },
-  ], extraPhotos: ["资产编号照片"] },
+  ]},
   equipment: { label: "设备",
     // 各种编号放在最前面；类别后面紧跟它触发的校准项；位置、状态、状况放一起
     layout: ["设备编号", "资产编号", "出厂编号", "标签编号", "设备名称", "型号", "厂商", "类别", "校准时间", "下次校准时间", "校验人",
@@ -526,69 +500,38 @@ function libLabel(node, parent) {
   const name = lang === "vi" ? (node.name_vi || node.name) : node.name;      // 越南文名称（电脑端位置库里翻译好的）
   return name && name !== short ? `${short} · ${name}` : short;
 }
-// 库位：一个格子（没选时是大字标签，选了以后标签缩成小字在上、选中的路径在下），右边「←」回退一级；
-// 格子下面是下一级的选项窗口（可滚动）：选一个，格子里就是它、窗口换成它的下一级；走到最下一级窗口自动收起，点格子再展开。
-const MOLD_PLACE = "V3-2F-模房";
-const placeOpen = {};                    // 格子下面的选项窗口是不是展开着（按格子前缀）
+// 从最上面一直到当前位置，每一级一个下拉；选到楼层或下面还有东西时再多出一级
+function libCascade(pre, path) {
+  const node = findNode(path), chain = [];
+  for (let n = node; n && n.code !== TREE.start && !chain.includes(n); n = TREE.byCode.get(n.parent_code)) chain.unshift(n);
+  const parts = [];
+  let parent = TREE.start;
+  for (let level = 0; level < 8; level++) {
+    const parentNode = TREE.byCode.get(parent), chosen = chain[level];
+    const kids = TREE.children.get(parent) || [];
+    parts.push(`<select ${level === 0 ? `id="${pre}_b" ` : ""}data-lib-level data-parent="${safe(parent)}">
+      <option value="">${level === 0 ? "选楼栋" : "（不再细分）"}</option>
+      ${kids.map(k => `<option data-raw value="${safe(k.code)}"${k === chosen ? " selected" : ""}>${safe(libLabel(k, parentNode))}</option>`).join("")}
+      ${parent ? `<option value="__new__">＋ 新增…</option>` : ""}</select>`);
+    if (!chosen) break;
+    if (!(TREE.children.get(chosen.code) || []).length && !/^\d+F$/i.test(chosen.path.split("-").pop())) break;   // 楼层下面可以加产线 / 货架
+    parent = chosen.code;
+  }
+  return `${parts.join("")}<input type="hidden" id="${pre}_lib" value="${safe(node && node.code !== TREE.start ? node.path : "")}">`;   // 选到哪一级就记哪一级，够不够由 placeValue 判断
+}
 function libPlaceHtml(f, s, pre) {
   let cur = s.lib;
   if (cur === undefined && s.b) {           // 旧版存的「栋/层/区/排/格」：换成新的短写法
     const tail = s.mode === "shelf" ? [s.z, +s.r, +s.l].join("-") : String(s.n || "").toUpperCase();
     cur = `V${s.b}-${s.f}F-${tail}`;
   }
-  const node = findNode(cur || ""), path = node && node.code !== TREE.start ? node.path : "";
-  return `<div class="fl" id="${pre}_place"><div class="box">
-    <input type="hidden" id="${pre}_lib" value="${safe(path)}">
-    <button type="button" class="pbox" id="${pre}_open" data-place-toggle="${pre}"><span data-raw>${safe(path)}</span></button>
-    <label for="${pre}_open">${f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? `<span class="tip">${f.hint}</span>` : ""}</label>
-  </div><button type="button" class="scanbtn" id="${pre}_back" data-place-back="${pre}">←</button></div>
-  <div class="pwin hidden" id="${pre}_win"></div>`;
-}
-function placeNode(pre) {
-  const node = findNode($(`${pre}_lib`).value);
-  return node && node.code !== TREE.start ? node : null;
-}
-function setPlace(pre, path) {
-  const node = findNode(path), lib = node && node.code !== TREE.start ? node.path : "";
-  $(`${pre}_lib`).value = lib;
-  $(`${pre}_open`).firstElementChild.textContent = lib;
-  syncFilled();
-}
-// 画格子下面的窗口：当前这一级的选项（open 为假就收起）
-function paintPlaceWin(pre, open) {
-  const win = $(`${pre}_win`); if (!win || !TREE) return;
-  placeOpen[pre] = open;
-  const node = placeNode(pre);
-  $(`${pre}_back`).disabled = !node;
-  win.classList.toggle("hidden", !open);
-  if (!open) return;
-  const code = node ? node.code : TREE.start, parent = TREE.byCode.get(code);
-  const kids = (TREE.children.get(code) || []).map(k => `<button type="button" class="chip" data-raw data-place-pick="${pre}|${safe(k.code)}">${safe(libLabel(k, parent))}</button>`).join("");
-  win.innerHTML = `<div class="chips">${kids}${node ? `<button type="button" class="chip act" data-place-new="${pre}">＋ 新增…</button>` : ""}${MAPS.length ? `<button type="button" class="chip act" data-place-map="${pre}">在地图上选</button>` : ""}</div>`;
-  win.scrollTop = 0;
-}
-// 下面没有东西、也不是楼层 = 最下一级
-const isLeafNode = node => !(TREE.children.get(node.code) || []).length && !/^\d+F$/i.test(node.path.split("-").pop());
-function setupPicker() {
-  document.addEventListener("click", e => {
-    if (!TREE) return;
-    const tog = e.target.closest("[data-place-toggle]"), back = e.target.closest("[data-place-back]"), pick = e.target.closest("[data-place-pick]");
-    const add = e.target.closest("[data-place-new]"), map = e.target.closest("[data-place-map]");
-    if (tog) paintPlaceWin(tog.dataset.placeToggle, !placeOpen[tog.dataset.placeToggle]);
-    else if (back) {
-      const pre = back.dataset.placeBack, node = placeNode(pre); if (!node) return;
-      const up = TREE.byCode.get(node.parent_code);
-      setPlace(pre, up && up.code !== TREE.start ? up.path : "");
-      paintPlaceWin(pre, true);
-    } else if (pick) {
-      const [pre, code] = pick.dataset.placePick.split("|"), node = TREE.byCode.get(code);
-      setPlace(pre, node.path);
-      paintPlaceWin(pre, !isLeafNode(node));
-    } else if (add) {
-      const pre = add.dataset.placeNew, node = addLibNode(placeNode(pre));
-      if (node) { setPlace(pre, node.path); paintPlaceWin(pre, false); }
-    } else if (map) enterMap(map.dataset.placeMap);
-  });
+  const node = findNode(cur || "");
+  return `<div class="place" id="${pre}_place">
+    <div class="ptitle">${f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? ` · ${f.hint}` : ""}</div>
+    <div class="cascade" id="${pre}_casc">${libCascade(pre, node ? node.path : "")}</div>
+    ${MAPS.length ? `<button type="button" class="btn ghost block" data-map-open="${pre}" style="padding:8px;margin:0 0 6px">在地图上看 / 选位置</button>` : ""}
+    <div class="hint" id="${pre}_view"></div>
+  </div>`;
 }
 // 「＋新增」：加在 parent 下面，返回新节点（取消 / 写法不对返回 null）
 function addLibNode(parent) {
@@ -606,7 +549,7 @@ function addLibNode(parent) {
   return findNode(path);
 }
 // ---- 地图模块（marks.js 由电脑端导出：楼层图 + 标注方块）-------------------------------------------
-// 地图组件（#mapBody）只在录入选位置时用：放在全屏的 #mapView 里点选。
+// 一个地图组件（#mapBody）两处用：「地图」标签页里随便看；录入 / 盘点选位置时放进全屏的 #mapView 里点选。
 // 拖动、双指缩放、双击放大都是自己实现的（图和方块用同一套坐标），方块上直接写名称，可以搜索位置或名称。
 const MAPS = window.MAPS || [];
 const MARKS = (window.MAP_MARKS || []).map(r => ({ id: r[0], map: r[1], loc: r[2], label: r[3], label_vi: r[4], x: r[5], y: r[6], w: r[7], h: r[8] }));
@@ -630,28 +573,38 @@ const MAX_ZOOM = 16;                                   // 最多放大到「整�
 let MV = null;                                         // 地图状态：楼层、缩放 / 平移、选中的方块……
 const mapVisible = () => !!MV && $("mvView").clientWidth > 0;
 
-// 打开地图选位置（pre 是库位选择器的前缀）
-function enterMap(pre) {
-  if (!MAPS.length) { toast("还没有地图数据（请先在电脑端导出位置库和地图）"); return; }
-  const cur = $(`${pre}_lib`) ? $(`${pre}_lib`).value : "";
+// 打开地图。mode "browse"：「地图」标签页里看；"pick"：录入 / 盘点里选位置（pre 是那套选择器的前缀）
+function enterMap(mode, pre) {
+  if (!MAPS.length) { $("mvInfo").innerHTML = "<span>还没有地图数据（请先在电脑端导出位置库和地图）</span>"; return; }
+  const cur = mode === "pick" && $(`${pre}_lib`) ? $(`${pre}_lib`).value : "";
   const found = cur ? marksFor(cur) : [];
   let last = ""; try { last = localStorage.getItem("mapLast") || ""; } catch {}
   if (!MV) MV = { s: 1, tx: 0, ty: 0, iw: 0, ih: 0, fit: 1, labels: true, map: MAPS.find(m => m[0] === last) ? last : MAPS[0][0], nodes: new Map() };
-  Object.assign(MV, { mode: "pick", pre, cur, found, sel: null, place: "", lastTap: null });
+  Object.assign(MV, { mode, pre, cur, found, sel: null, place: "", lastTap: null });
   if (found[0]) MV.map = found[0].map;
-  $("mvFoot").classList.remove("hidden");
+  const pick = mode === "pick";
+  (pick ? $("mapPickHost") : $("pageMap")).appendChild($("mapBody"));
+  $("mvFoot").classList.toggle("hidden", !pick);
   $("mvPick").disabled = true;
   $("mvQ").value = ""; hideResults();
-  $("mapView").classList.remove("hidden");
+  if (pick) $("mapView").classList.remove("hidden");
   requestAnimationFrame(() => paintFloor(true));      // 等它有了尺寸再量
 }
-function closeMap() { $("mapView").classList.add("hidden"); }
+function closeMap() {
+  $("mapView").classList.add("hidden");
+  $("pageMap").appendChild($("mapBody"));
+  if (MV) MV.mode = "browse";
+}
 function renderTabs() {
   $("mvTabs").innerHTML = MAPS.map(m => `<button type="button" data-mp="${safe(m[0])}" class="${m[0] === MV.map ? "on" : ""}">${safe(m[1])} <small>${MARKS.filter(k => k.map === m[0]).length}</small></button>`).join("");
 }
 function renderInfo() {
+  const n = MARKS.filter(k => k.map === MV.map).length;
   let html;
-  if (MV.sel) {
+  if (MV.mode !== "pick") {
+    html = `<span>本层</span> <b>${n}</b> <span>个标注</span> · <span>点方块看位置，双指缩放，双击放大，拖动移动</span>`;
+    if (window.LOCATIONS_AT) html += ` · <span>位置库更新于</span> <b data-raw>${safe(window.LOCATIONS_AT)}</b>`;
+  } else if (MV.sel) {
     html = `<span>已选：</span><b data-raw>${safe(MV.sel.loc)}</b>${markName(MV.sel) ? ` <span data-raw>${safe(markName(MV.sel))}</span>` : ""}`;
   } else if (MV.cur && MV.found.length) {
     html = `<b data-raw>${safe(MV.cur)}</b> <span>在图上的红框处</span>${segs(MV.found[0].loc).join("-") !== segs(MV.cur).join("-") ? ` <span>（地图只标到第三级，红框是它所在的</span> <b data-raw>${safe(MV.found[0].loc)}</b>${markName(MV.found[0]) ? ` <span data-raw>${safe(markName(MV.found[0]))}</span>` : ""}<span>）</span>` : ""}`;
@@ -731,7 +684,7 @@ function drawView() {
 }
 // 选中的（或者当前位置所在的红框）上方飘一个名称，方块太小写不下也看得到
 function drawTag(vw, vh) {
-  const tag = $("mvTag"), k = MV.sel || MV.found.find(m => m.map === MV.map);
+  const tag = $("mvTag"), k = MV.sel || (MV.mode === "pick" ? MV.found.find(m => m.map === MV.map) : null);
   if (!k || !MV.nodes.has(k)) { tag.classList.add("hidden"); return; }
   const b = markBox(k);
   tag.textContent = markLabel(k);
@@ -770,7 +723,7 @@ function markAt(px, py) {
 function selectMark(k, place = "") {
   MV.sel = k; MV.place = place;
   refreshMarkClasses(); renderInfo(); renderSheet();
-  $("mvPick").disabled = !k;
+  $("mvPick").disabled = !(k && MV.mode === "pick");
   drawView();
 }
 // 下面的小卡片：名称、位置、下级位置有多少
@@ -796,7 +749,16 @@ function renderSheet() {
     <div class="pth" data-raw>${safe(k.loc)}${map ? ` · ${safe(map[1])}` : ""}</div>
     ${MV.place ? `<div class="hint"><span>你找的</span> <b data-raw>${safe(MV.place)}</b> <span>在这个方块里</span></div>` : ""}
     ${node && countBelow(node) ? `<div class="hint"><span>含</span> <b>${countBelow(node)}</b> <span>个下级位置</span></div>` : ""}
-    ${kids.length ? `<div class="chips2">${kids.slice(0, 16).map(c => `<span data-raw>${safe(libLabel(c, node))}</span>`).join("")}${kids.length > 16 ? "<span>…</span>" : ""}</div>` : ""}`;
+    ${kids.length ? `<div class="chips2">${kids.slice(0, 16).map(c => `<span data-raw>${safe(libLabel(c, node))}</span>`).join("")}${kids.length > 16 ? "<span>…</span>" : ""}</div>` : ""}
+    ${MV.mode === "pick" ? "" : `<div class="btns"><button type="button" class="btn ghost" data-copy="${safe(k.loc)}">复制位置</button></div>`}`;
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); toast("已复制"); return; } catch {}
+  try {
+    const t = document.createElement("textarea"); t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select(); const ok = document.execCommand("copy"); t.remove();
+    toast(ok ? "已复制" : "复制失败");
+  } catch { toast("复制失败"); }
 }
 // 搜索：方块的名称 / 位置，以及位置库里落在某个方块里的位置（打「V1-2F-B-3」也能找到它在哪个方块）
 let SEARCH = null;
@@ -839,7 +801,7 @@ function gotoMark(k, place) {
   hideResults(); $("mvQ").blur();
   MV.sel = k; MV.place = place || "";
   if (k.map !== MV.map) { MV.map = k.map; paintFloor(true); return; }
-  refreshMarkClasses(); renderInfo(); renderSheet(); $("mvPick").disabled = false;
+  refreshMarkClasses(); renderInfo(); renderSheet(); $("mvPick").disabled = MV.mode !== "pick";
   zoomToMark(k);
 }
 // 手势：一根手指拖动，两根手指缩放，轻点选方块，连点两下放大，电脑上滚轮缩放 -------------------------------
@@ -924,12 +886,16 @@ function refreshMapLang() {
   buildMarks(); renderTabs(); renderInfo(); renderSheet(); if (!$("mvRes").classList.contains("hidden")) runSearch(); layout();
 }
 document.addEventListener("click", e => {
+  const open = e.target.closest("[data-map-open]");
+  if (open) { enterMap("pick", open.dataset.mapOpen); return; }
   if (!MV) return;
   const go = e.target.closest("[data-goto]");
   if (go) { gotoMark(MARKS.find(k => String(k.id) === go.dataset.goto), go.dataset.place); return; }
   if (!e.target.closest(".mb-search")) hideResults();
   const tab = e.target.closest("[data-mp]");
   if (tab) { MV.map = tab.dataset.mp; MV.sel = null; MV.place = ""; paintFloor(false); return; }
+  const copy = e.target.closest("[data-copy]");
+  if (copy) { copyText(copy.dataset.copy); return; }
   if (e.target.closest("#mvIn")) { const v = $("mvView"); zoomAt(v.clientWidth / 2, v.clientHeight / 2, 1.6); }
   else if (e.target.closest("#mvOut")) { const v = $("mvView"); zoomAt(v.clientWidth / 2, v.clientHeight / 2, 1 / 1.6); }
   else if (e.target.closest("#mvFit")) { fitView(); layout(); }
@@ -938,12 +904,28 @@ document.addEventListener("click", e => {
   else if (e.target.closest("#mvPick")) {
     const node = MV.sel && findNode(MV.sel.loc);
     if (!node) { toast("位置库里没有这个位置"); return; }
-    setPlace(MV.pre, node.path);
-    closeMap(); paintPlaceWin(MV.pre, false);
+    const pre = MV.pre;
+    $(`${pre}_casc`).innerHTML = libCascade(pre, node.path);
+    updatePlaceView(pre);
+    if (pre === "sp") saveStockPlace();
+    try { syncFilled(); } catch {}
+    closeMap();
   }
 });
+document.addEventListener("change", e => {
+  const sel = e.target.closest && e.target.closest("[data-lib-level]");
+  if (!sel || !TREE) return;
+  const box = sel.closest(".place"), pre = box.id.replace(/_place$/, "");
+  const parent = TREE.byCode.get(sel.dataset.parent);
+  let node = sel.value === "__new__" ? addLibNode(parent) : TREE.byCode.get(sel.value);
+  const cur = $(`${pre}_lib`).value;
+  $(`${pre}_casc`).innerHTML = libCascade(pre, node ? node.path : sel.value === "__new__" ? cur : parent ? parent.path : "");
+  updatePlaceView(pre);
+  if (pre === "sp") saveStockPlace();
+});
 
-// pre：位置选择器的 id 前缀（录入页用 p_）
+// pre：这套「楼栋/楼层/货架-产线」选择器在页面上可能同时出现不止一处（录入页、盘点页各一份），
+// 靠 id 前缀区分，互不干扰；不传 pre 时还是原来的 p_ 前缀，录入页的调用不用改
 function placeHtml(f, v, pre = "p") {
   if (TREE) return libPlaceHtml(f, v || {}, pre);
   const s = v || {}, mode = s.mode || f.place;
@@ -1010,6 +992,7 @@ function db() {
     r.onupgradeneeded = () => {
       const d = r.result;
       if (!d.objectStoreNames.contains("records")) d.createObjectStore("records", { keyPath: "id", autoIncrement: true });
+      if (!d.objectStoreNames.contains("stock")) d.createObjectStore("stock", { keyPath: "id", autoIncrement: true });
     };
     r.onsuccess = () => ok(r.result);
     r.onerror = () => no(r.error);
@@ -1044,25 +1027,14 @@ function unpackRecord(rec) {
 async function putRec(rec) { const packed = await packRecord(rec); return tx("records", "readwrite", s => s.put(packed)); }
 const delRec = id => tx("records", "readwrite", s => s.delete(id));
 async function allRecs() { return (await tx("records", "readonly", s => s.getAll())).map(unpackRecord); }
+// ---- 盘点：条码 + 产线/位置，另开一个独立的表，不跟「物品采集」混在一起 ----------------------
+const putStock = rec => tx("stock", "readwrite", s => s.put(rec));
+const delStock = id => tx("stock", "readwrite", s => s.delete(id));
+const allStock = () => tx("stock", "readonly", s => s.getAll());
 
 // ---- 状态 -----------------------------------------------------------------------------
 const $ = id => document.getElementById(id);
-// 录入页先选房间：模房（只录端子 / 治具 / 物品，位置默认 V3-2F-模房）或其他（四类都能录，位置自己选）
-const TYPE_ORDER = ["terminal", "fixture", "item", "equipment"];
-const MOLD_TYPES = ["terminal", "fixture", "card"];
-let room = "mold";
-try { if (localStorage.getItem("room") === "other") room = "other"; } catch {}
-let type = "terminal";
-function setRoom(r) {
-  room = r;
-  try { localStorage.setItem("room", r); } catch {}
-  $("roomLabel").textContent = r === "mold" ? MOLD_PLACE : "其他";                      // 「录入」标签直接显示选好的房间
-  for (const b of $("roomMenu").children) b.classList.toggle("on", b.dataset.room === r);
-  if (!roomTypes().includes(type)) type = roomTypes()[0];
-}
-const roomTypes = () => room === "mold" ? MOLD_TYPES : TYPE_ORDER;
-// 一条已有记录该落在哪个房间（编辑 / 复制时切过去）
-const roomOf = r => r.type === "card" ? "mold" : r.type === "item" ? "other" : r.type !== "equipment" && String((r.data["库位"] || r.data["位置"] || "")).toUpperCase().indexOf(MOLD_PLACE) === 0 ? "mold" : "other";
+let type = "item";
 let photo = null;              // Blob
 let previewUrl = null;
 const kept = {};               // 上次保存时保留下来的值
@@ -1159,26 +1131,22 @@ const VI = {
  "工装": "Đồ gá công nghệ",
  "物品采集": "Thu thập vật phẩm",
  "物品": "Vật tư",
- "加工件": "Chi tiết gia công", "电源": "Nguồn điện", "类型": "Loại", "＋ 新类型": "＋ Loại mới", "不写就用类型": "bỏ trống sẽ dùng loại", "选填": "tùy chọn",
- "端子": "Đầu cos", "数量": "Số lượng", "端子料号": "Mã đầu cos",
- "也是它的编号，如 M509200320；右边「＋」可加适用料号": "Cũng là mã của nó, vd M509200320; bấm「＋」bên phải để thêm mã áp dụng",
- "适用产品料号": "Mã sản phẩm áp dụng",
  "录入": "Nhập liệu",
  "已记录": "Đã ghi",
  "拍照": "Chụp",
  "重拍": "Chụp lại",
  "未拍照": "Chưa chụp",
  "保存后：同款连续录入（只改编号、拍照）": "Sau khi lưu: nhập liên tiếp cùng loại (chỉ đổi mã, chụp ảnh)",
- "搜索位置或名称，如 FHT14、仓库": "Tìm vị trí hoặc tên, vd FHT14, kho", "地图上的标注": "Đánh dấu trên bản đồ",
+ "地图": "Bản đồ", "搜索位置或名称，如 FHT14、仓库": "Tìm vị trí hoặc tên, vd FHT14, kho", "地图上的标注": "Đánh dấu trên bản đồ",
  "位置库里的位置（在下面这些标注里）": "Vị trí trong thư viện (nằm trong các đánh dấu bên dưới)", "没有找到": "Không tìm thấy", "在标注": "trong đánh dấu",
- "含": "Gồm", "个下级位置": "vị trí cấp dưới", "你找的": "Vị trí bạn tìm", "在这个方块里": "nằm trong ô này",
- "名": "Tên",
- "V3-2F-模房": "V3-2F-Phòng khuôn",
+ "本层": "Tầng này có", "个标注": "đánh dấu", "点方块看位置，双指缩放，双击放大，拖动移动": "Bấm ô để xem vị trí, hai ngón để thu phóng, chạm đúp để phóng to, kéo để di chuyển",
+ "位置库更新于": "Thư viện cập nhật", "含": "Gồm", "个下级位置": "vị trí cấp dưới", "你找的": "Vị trí bạn tìm", "在这个方块里": "nằm trong ô này",
+ "复制位置": "Sao chép vị trí", "已复制": "Đã sao chép", "复制失败": "Sao chép thất bại", "名": "Tên",
  "还没有地图数据（请先在电脑端导出位置库和地图）": "Chưa có dữ liệu bản đồ (hãy xuất thư viện vị trí và bản đồ từ máy tính trước)",
  "位置地图": "Bản đồ vị trí", "选这个位置": "Chọn vị trí này", "已选：": "Đã chọn: ", "在图上的红框处": "ở khung đỏ trên bản đồ",
  "（地图只标到第三级，红框是它所在的": "(bản đồ chỉ đánh dấu đến cấp 3, khung đỏ là", "）": ")", "还没有在地图上标注": "chưa được đánh dấu trên bản đồ",
- "点图上的方块选位置": "Bấm vào ô trên bản đồ để chọn vị trí", "在地图上选": "Chọn trên bản đồ", "位置库里没有这个位置": "Thư viện không có vị trí này",
- "＋ 新增…": "＋ Thêm mới…", "请选择楼层": "Vui lòng chọn tầng",
+ "点图上的方块选位置": "Bấm vào ô trên bản đồ để chọn vị trí", "在地图上看 / 选位置": "Xem / chọn vị trí trên bản đồ", "位置库里没有这个位置": "Thư viện không có vị trí này",
+ "选楼栋": "Chọn tòa", "（不再细分）": "(không chọn thêm)", "＋ 新增…": "＋ Thêm mới…", "请选择楼层": "Vui lòng chọn tầng",
  "保存后：只保留类别、位置等常用项": "Sau khi lưu: chỉ giữ loại, vị trí…",
  "保存后：全部清空": "Sau khi lưu: xóa hết",
  "删除已导出的": "Xóa các mục đã xuất",
@@ -1241,6 +1209,7 @@ const VI = {
  "扫码组件没加载出来，请联网打开一次页面": "Chưa tải được thành phần quét, hãy mở trang khi có mạng một lần",
  "没有相机权限，请在浏览器设置里允许，或手动输入": "Chưa có quyền camera, hãy cho phép trong cài đặt trình duyệt, hoặc nhập tay",
  "打不开相机，请手动输入": "Không mở được camera, hãy nhập tay",
+ "需要用 https 网址打开才能拍照扫码，可以先用扫码枪或手动输入": "Cần mở bằng địa chỉ https mới quét bằng camera được, có thể dùng súng quét hoặc nhập tay",
  "这个软件内置的浏览器不能用相机，请点右上角「···」用 Safari / Chrome 打开": "Trình duyệt tích hợp trong ứng dụng này không dùng được camera, hãy bấm 「···」 góc phải rồi mở bằng Safari / Chrome",
  "这个浏览器不支持相机扫码，请改用 Safari / Chrome": "Trình duyệt này không hỗ trợ quét bằng camera, hãy dùng Safari / Chrome",
  "相机被别的程序占用了，请关掉后重试": "Camera đang bị ứng dụng khác dùng, hãy tắt đi rồi thử lại",
@@ -1347,39 +1316,26 @@ function applyLang() {
 
 // ---- 表单 -----------------------------------------------------------------------------
 function renderTypes() {
-  $("types").innerHTML = roomTypes().map(k => `<button data-type="${k}" class="${k === type ? "on" : ""}">${TYPES[k].label}</button>`).join("");
+  $("types").innerHTML = Object.entries(TYPES).map(([k, v]) => `<button data-type="${k}" class="${k === type ? "on" : ""}">${v.label}</button>`).join("");
 }
 // 短字段（下拉、数字、日期、型号等）两个并排一行，其余占满一行
 const HALF = ["型号", "厂商", "规格", "校验人", "缺少配件", "贴标位置", "设备功率", "设备电压", "设备重量", "使用年限"];   // 带扫码按钮的编号框占满一行
-// 编号类字段只许英文字母、数字和「-」（MES 的治具条码是 M0302500232-VAA-00002）；出厂编号另外允许英文符号，都不许出现汉字 / 越南文等文字和空格
-const codeClean = (k, s) => UNIQUE.includes(k) ? String(s).replace(k === "出厂编号" ? /[^\x21-\x7E]/g : /[^A-Za-z0-9-]/g, "") : s;
-// 类型按钮：一点就选好；自己加的新类型记在这台手机里
-const customCats = () => { try { return JSON.parse(localStorage.getItem("customCats") || "[]"); } catch { return []; } };
-function chipsHtml(f, v) {
-  const list = [...new Set([...f.chips, ...customCats(), ...(v ? [v] : [])])];
-  return `<div class="clabel">${f.label || f.k}${f.req ? " <b>*</b>" : ""}</div><div class="cchips" id="cc_${f.k}">${list.map(o => `<button type="button" class="cc${o === v ? " on" : ""}" data-cc="${safe(o)}">${safe(o)}</button>`).join("")}<button type="button" class="cc add" data-ccadd="${f.k}">＋ 新类型</button></div><input type="hidden" id="f_${f.k}" value="${safe(v || "")}">`;
-}
+// 编号类字段只许英文字母和数字；出厂编号另外允许英文符号，都不许出现汉字 / 越南文等文字和空格
+const codeClean = (k, s) => UNIQUE.includes(k) ? String(s).replace(k === "出厂编号" ? /[^\x21-\x7E]/g : /[^A-Za-z0-9]/g, "") : s;
 function fieldHtml(f) {
-  if (f.chips) return `<div class="f">${chipsHtml(f, kept[type + f.k] ?? f.def ?? "")}</div>`;
-  if (f.place) return `<div class="f">${placeHtml(f, kept[type + "place"] ?? (room === "mold" ? { lib: MOLD_PLACE } : undefined))}</div>`;
-  const v = f.locked ? f.def : codeClean(f.k, kept[type + f.k] ?? f.def ?? "");
+  if (f.place) return `<div class="f">${placeHtml(f, kept[type + "place"])}</div>`;
+  const v = codeClean(f.k, kept[type + f.k] ?? f.def ?? "");
   const id = "f_" + f.k;
   let input;
   if (f.opts) input = `<select id="${id}"><option value=""></option>${f.opts.map(o => `<option value="${o}"${o === v ? " selected" : ""}>${o}</option>`).join("")}</select>`;
   else if (f.area) input = `<textarea id="${id}">${safe(v)}</textarea>`;
-  else input = `<input id="${id}" value="${safe(v)}"${f.locked ? " readonly" : ""}${f.type === "number" ? ' type="number" inputmode="numeric" min="0"' : f.type === "date" ? ' type="text" data-date="1"' : ""}${f.ph ? ` placeholder="${safe(f.ph)}"` : ""}${UNIQUE.includes(f.k) || f.scan ? ' data-code="1" autocapitalize="characters" autocorrect="off" spellcheck="false"' : ""} autocomplete="off">`;
+  else input = `<input id="${id}" value="${safe(v)}"${f.type === "number" ? ' type="number" inputmode="numeric" min="0"' : f.type === "date" ? ' type="text" data-date="1"' : ""}${f.ph ? ` placeholder="${safe(f.ph)}"` : ""}${UNIQUE.includes(f.k) ? ' data-code="1" autocapitalize="characters" autocorrect="off" spellcheck="false"' : ""} autocomplete="off">`;
   // 名称直接写在格子里（没填时是大字，填了以后缩成小字留在格子左上角）
-  const label = `<label for="${id}">${f.label || f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? `<span class="tip">${f.hint}</span>` : ""}</label>`;
-  const scan = (UNIQUE.includes(f.k) || f.scan ? `<button type="button" class="scanbtn" data-scan="${id}">扫码</button>` : "") + (f.plus ? `<button type="button" class="scanbtn" data-addpart>＋</button>` : "");
-  const half = f.opts || f.type === "number" || f.type === "date" || (HALF.includes(f.k) && !f.plus);
-  return `<div class="f${half ? " half" : ""}"${f.when ? ` data-wk="${f.when.k}" data-wv="${f.when.v}"` : ""}><div class="fl${f.area ? " area" : ""}"><div class="box">${input}${label}</div>${scan}</div>${f.plus ? `<div class="parts" id="partsBox">${partList(kept[type + "适用产品料号"]).map(partRow).join("")}</div>` : ""}</div>`;
+  const label = `<label for="${id}">${f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? `<span class="tip">${f.hint}</span>` : ""}</label>`;
+  const scan = UNIQUE.includes(f.k) ? `<button type="button" class="scanbtn" data-scan="${id}">扫码</button>` : "";
+  const half = f.opts || f.type === "number" || f.type === "date" || HALF.includes(f.k);
+  return `<div class="f${half ? " half" : ""}"${f.when ? ` data-wk="${f.when.k}" data-wv="${f.when.v}"` : ""}><div class="fl${f.area ? " area" : ""}"><div class="box">${input}${label}</div>${scan}</div></div>`;
 }
-// 端子的适用料号：一个一格，只许英文字母、数字和「-」，保存成空格连起来的一串
-let partSeq = 0;
-const partClean = s => String(s).replace(/[^A-Za-z0-9-]/g, "");
-const partList = v => String(v || "").split(/[\s,，;；、]+/).map(partClean).filter(Boolean);
-const partRow = v => { const id = "pt_" + (++partSeq); return `<div class="fl"><div class="box"><input id="${id}" class="partin" value="${safe(v)}" autocapitalize="characters" autocorrect="off" spellcheck="false" autocomplete="off"><label for="${id}">适用产品料号</label></div><button type="button" class="scanbtn" data-scan="${id}">扫码</button><button type="button" class="scanbtn" data-delpart>－</button></div>`; };
-const readParts = () => [...new Set([...document.querySelectorAll("#fields .partin")].map(i => partClean(i.value).toUpperCase()).filter(Boolean))];
 function syncFilled() {
   for (const box of $("fields").querySelectorAll(".fl .box")) {
     const c = box.querySelector("input,select,textarea");
@@ -1391,7 +1347,7 @@ function displayFields(def) {
   const by = Object.fromEntries(def.fields.map(f => [f.k, f]));
   let order = (def.layout || []).filter(k => by[k]);
   order = order.concat(def.fields.map(f => f.k).filter(k => !order.includes(k)));
-  const nameK = nameKeyOf(def), viK = "越南文名称", viFirst = lang === "vi" && !!by[viK] && !!nameK && !by[nameK].locked && !def.cardLike;
+  const nameK = def.fields[1].k, viK = "越南文名称", viFirst = lang === "vi" && !!by[viK];
   if (viFirst) {                                   // 越南语操作员：越南文名称放主位，中文名称与它互换、收进「更多信息」
     const a = order.indexOf(nameK), b = order.indexOf(viK);
     if (a >= 0 && b >= 0) { order[a] = viK; order[b] = nameK; }
@@ -1404,27 +1360,24 @@ function displayFields(def) {
     return f;
   });
 }
-// 名称：中文名称和越南文名称填一个就行；哪个是必填看当前语言。治具没有名称（电脑端按编号去 MES 清单里对），显示编号
-const nameKeyOf = def => (def.fields.find(f => /名称$/.test(f.k) && f.k !== "越南文名称") || {}).k;
+// 名称：中文名称和越南文名称填一个就行；哪个是必填看当前语言
 function displayName(def, data) {
-  const nk = nameKeyOf(def), zh = nk ? data[nk] : "", vi = data["越南文名称"];
-  return (lang === "vi" ? (vi || zh) : (zh || vi)) || (def.cardLike ? data["类别"] : "") || data[def.fields[0].k] || "";
+  const zh = data[def.fields[1].k], vi = data["越南文名称"];
+  return lang === "vi" ? (vi || zh || "") : (zh || vi || "");
 }
 // 切换语言时表单结构会变，先把已填的内容存下来再重画
 function snapshotForm() {
   for (const f of TYPES[type].fields) {
     if (f.place) kept[type + "place"] = placeState();
-    else if (f.parts) kept[type + f.k] = readParts().join(" ");
     else { const el = $("f_" + f.k); if (el) kept[type + f.k] = el.value; }
   }
 }
 function renderForm() {
   const fs = displayFields(TYPES[type]);
-  const more = fs.filter(f => f.more && !f.hidden).map(fieldHtml).join("");
-  $("fields").innerHTML = fs.filter(f => !f.more && !f.hidden).map(fieldHtml).join("") +
+  const more = fs.filter(f => f.more).map(fieldHtml).join("");
+  $("fields").innerHTML = fs.filter(f => !f.more).map(fieldHtml).join("") +
     (more ? `<details class="more"><summary>更多信息（选填）</summary>${more}</details>` : "");
   toggleWhen(); updatePlaceView(); renderExtra(); updatePhotoHint(); syncFilled();
-  if (TREE && $("p_win")) { const at = placeNode("p"); paintPlaceWin("p", !(at && isLeafNode(at))); }      // 默认展开；已经是最下一级就收着
 }
 
 // 型号厂商对应表（电脑端「数据标准化 → 型号厂商」，makers.js 导出）：型号写完整、厂商还空着，就自动填上厂商
@@ -1444,22 +1397,14 @@ async function refreshModelPhotos() {
   updatePhotoHint();
 }
 function photoNeeded() {
-  if (TYPES[type].noPhoto) return false;
-  if (type === "item" || TYPES[type].cardLike) return true;
+  if (type === "item") return true;
   const m = $("f_型号") ? $("f_型号").value : "";
   return !(m.trim() && modelPhotos.has(modelKey(type, m)));
 }
 function updatePhotoHint() {
-  const asset = $("f_资产编号");                                       // 治具：填了资产编号才露出「资产编号照片」，并提醒要拍
-  $("xphotos").classList.toggle("hidden", type === "fixture" && !((asset && asset.value.trim()) || extra["资产编号照片"]));
-  const no = !!TYPES[type].noPhoto;
-  $("pv").closest(".ptile").classList.toggle("hidden", no);          // 端子不拍照
-  $("photoHint").classList.toggle("hidden", no);
   const need = photoNeeded();
   $("photoStar").classList.toggle("hidden", !need);
-  $("entryCard").classList.toggle("photo-first", !!TYPES[type].cardLike);   // 物品：先拍照，再点类型、选库位
-  $("keepMode").classList.toggle("hidden", !!TYPES[type].cardLike);          // 物品固定「保存后保留类型和库位」，连续拍同一个箱子
-  $("photoHint").textContent = type === "item" || TYPES[type].cardLike ? "" : need ? "同型号只需拍一张，之后的同型号不用再拍" : "这个型号已经拍过照片，可以不拍（想换也可以重拍）";
+  $("photoHint").textContent = type === "item" ? "" : need ? "同型号只需拍一张，之后的同型号不用再拍" : "这个型号已经拍过照片，可以不拍（想换也可以重拍）";
 }
 
 // 标签照片 / 铭牌照片：设备的附加照片，选填
@@ -1476,7 +1421,7 @@ function showExtra(k) {
 }
 function renderExtra() {
   const ks = TYPES[type].extraPhotos || [];
-  $("xphotos").innerHTML = ks.map(k => `<div class="ptile"><div class="plabel">${k}${type === "fixture" ? " <b>*</b>" : ""}</div><div class="pv" id="xpv_${k}">未拍照</div><button class="pbtn" id="xbtn_${k}" data-x="${k}" type="button">拍照</button></div>`).join("");
+  $("xphotos").innerHTML = ks.map(k => `<div class="ptile"><div class="plabel">${k}</div><div class="pv" id="xpv_${k}">未拍照</div><button class="pbtn" id="xbtn_${k}" data-x="${k}" type="button">拍照</button></div>`).join("");
   ks.forEach(showExtra);
 }
 // 有 when 的字段：所依赖的那一项选到指定值才显示（如类别=测试 → 校准信息）
@@ -1490,11 +1435,9 @@ function toggleWhen() {
 function readForm() {
   const out = {};
   for (const f of TYPES[type].fields) {
-    if (f.parts) { out[f.k] = readParts().join(" "); continue; }
-    if (f.hidden) { out[f.k] = ""; continue; }
     if (f.place) {
       const r = placeValue(placeState());
-      if (r.error) throw { message: r.error, focus: "p_open" };
+      if (r.error) throw { message: r.error, focus: "p_b" };
       out[f.k] = r.value;
     } else if (f.when && $("f_" + f.k).closest("[data-wk]").classList.contains("hidden")) out[f.k] = "";
     else {
@@ -1536,29 +1479,21 @@ async function save() {
   let data;
   try { data = readForm(); }
   catch (e) { toast(e.message); if (e.focus && $(e.focus)) $(e.focus).focus(); return; }
-  if (def.noPhoto) {                                                   // 端子：规格就是编号
-    const code = String(data["规格"]).replace(/\s+/g, "").toUpperCase();
-    if (!code) { toast("请填写「端子料号（规格）」"); $("f_规格").focus(); return; }
-    if (!/^[A-Z0-9-]+$/.test(code)) { toast("端子料号只能是英文字母、数字和「-」"); $("f_规格").focus(); return; }
-    data["规格"] = code; data["物品编号"] = code;
-  }
-  const nameK = nameKeyOf(def);
-  if (nameK && !def.cardLike && !data[nameK] && !data["越南文名称"]) {
+  const nameK = def.fields[1].k;
+  if (!data[nameK] && !data["越南文名称"]) {
     const k = lang === "vi" ? "越南文名称" : nameK;
     toast(`请填写「${k}」`); const el = $("f_" + k); if (el) el.focus(); return;
   }
   const missing = displayFields(def).find(f => f.req && f.k !== nameK && f.k !== "越南文名称" && (!f.when || data[f.when.k] === f.when.v) && !data[f.k]);
-  if (missing) { toast(`请填写「${missing.k}」`); const el = $(missing.place ? "p_open" : "f_" + missing.k); if (el) el.focus(); return; }
-  if (type === "equipment" && String(data["位置"] || "").toUpperCase().replace(/[/\s]+/g, "-").indexOf("V3-2F-模房") === 0) { toast(lang === "vi" ? "Phòng khuôn không để thiết bị" : "模房不放设备"); $("p_open").focus(); return; }
+  if (missing) { toast(`请填写「${missing.k}」`); const el = $(missing.place ? "p_b" : "f_" + missing.k); if (el) el.focus(); return; }
   if (data["校准时间"] && data["下次校准时间"] && data["下次校准时间"] <= data["校准时间"]) { toast("下次校准时间必须晚于校准时间"); $("f_下次校准时间").focus(); return; }
-  if (type === "fixture" && data["资产编号"] && !extra["资产编号照片"]) { toast("填了资产编号，请拍资产编号照片"); $("xbtn_资产编号照片").focus(); return; }
-  if (!photo && photoNeeded()) { toast(type === "item" || def.cardLike ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
-  if ((type === "item" || type === "terminal") && !/^\d+$/.test(String(data["初始库存"]).trim())) { toast("初始库存必须是 0 或正整数"); $("f_初始库存").focus(); return; }
+  if (!photo && photoNeeded()) { toast(type === "item" ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
+  if (type === "item" && !/^\d+$/.test(String(data["初始库存"]).trim())) { toast("初始库存必须是 0 或正整数"); $("f_初始库存").focus(); return; }
   // 每一行就是一台（一件），编号不能重复
   const old = await allRecs();
   for (const k of ["设备编号", "治具编号", "物品编号"]) {
     if (data[k] && old.some(r => r.id !== editingId && r.type === type && r.data[k] === data[k])) {
-      toast(`「${def.noPhoto ? "端子料号" : k}」${data[k]} 已经录过了`); const el = $("f_" + k); if (el) el.focus(); return;
+      toast(`「${k}」${data[k]} 已经录过了`); const el = $("f_" + k); if (el) el.focus(); return;
     }
   }
   if (editingId) {                                    // 修改已有记录：原地更新，重新标为待导出
@@ -1574,18 +1509,17 @@ async function save() {
   try { await putRec({ type, data, photo, extra, created: Date.now(), exported: false }); }
   catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
   extra = {};
-  const mode = def.cardLike ? "common" : $("keepMode").value;
-  if (!def.cardLike) try { localStorage.setItem("keepMode", mode); } catch {}
+  const mode = $("keepMode").value;
+  try { localStorage.setItem("keepMode", mode); } catch {}
   for (const f of def.fields) {
     if (f.place) continue;
-    kept[type + f.k] = mode === "all" ? (UNIQUE.includes(f.k) || (def.noPhoto && f.k === "规格") ? undefined : data[f.k]) : (mode === "common" && f.keep ? data[f.k] : undefined);
+    kept[type + f.k] = mode === "all" ? (UNIQUE.includes(f.k) ? undefined : data[f.k]) : (mode === "common" && f.keep ? data[f.k] : undefined);
   }
   if (place) kept[type + "place"] = mode === "none" ? undefined : placeSnapshot;
   setPhoto(null); renderForm(); refreshCount(); refreshModelPhotos();
   $("main").scrollTo({ top: 0, behavior: "smooth" });
   const n = old.filter(r => !r.exported).length + 1;
   toast(`已保存（待导出共 ${n} 条）`);
-  if (def.cardLike) setTimeout(() => { try { $("cam").click(); } catch {} }, 350);     // 物品：直接打开相机拍下一张（浏览器不允许时就算了，点「拍照」）
 }
 
 // ---- 扫码：用相机识别条码 / 二维码，填进编号框（扫码库 zxing.min.js 第一次用到时才加载）--------
@@ -1651,7 +1585,9 @@ async function openCamera(rd, videoId, msgEl, onText) {
     if (msgEl.textContent === CAM_HINT) msgEl.textContent = orig;
   }
 }
-$("scan").addEventListener("click", () => { $("scanVideo").play().catch(() => {}); });   // 点一下屏幕 = 一次真正的用户操作，iPhone 肯放行
+for (const [box, vid] of [["scan", "scanVideo"], ["stockScan", "stockVideo"]]) {
+  $(box).addEventListener("click", () => { $(vid).play().catch(() => {}); });   // 点一下屏幕 = 一次真正的用户操作，iPhone 肯放行
+}
 
 let reader = null, scanTarget = "";
 async function startScan(id) {
@@ -1681,6 +1617,149 @@ function finishScan(text) {
   toast("已扫到：" + text);
 }
 
+// ---- 盘点：只填「产线/位置」+ 扫条码，可以一直扫，位置自动带到下一次 ------------------------
+// 位置输入跟电脑端、录入页是同一套「楼栋+楼层+货架/产线」选择器（同一个 placeHtml），
+// 不再是随便打字的文本框，这样导出的位置格式（如 V3-2F-FHA-01）才跟设备台账里的位置对得上，
+// 电脑端「盘点」导入后才能正确判断「相符」还是「位置不符」，而不是文本对不上永远显示不符。
+const STOCK_PLACE_FIELD = { k: "产线 / 位置", place: "line", hint: "可不填，不强制；每次扫完自动保留，下次接着用" };
+function renderStockPlace(state) {
+  $("stockPlaceWrap").innerHTML = placeHtml(STOCK_PLACE_FIELD, state, "sp");
+  updatePlaceView("sp");
+}
+function saveStockPlace() { try { localStorage.setItem("stockPlace", JSON.stringify(placeState("sp"))); } catch {} }
+function currentStockPlace() { return placeValue(placeState("sp")); }
+let stockPlaceInit = {};
+try { const v = localStorage.getItem("stockPlace"); if (v) stockPlaceInit = JSON.parse(v); } catch {}
+renderStockPlace(stockPlaceInit);
+// 切「货架/产线」、改楼栋楼层等：跟录入页一样的交互，只是范围限定在盘点这个框里，不会互相干扰
+$("stockPlaceWrap").addEventListener("click", e => {
+  const b = e.target.closest("#sp_mode button"); if (!b) return;
+  const shelf = b.dataset.m === "shelf";
+  $("sp_mode").dataset.mode = b.dataset.m;
+  for (const x of $("sp_mode").children) x.classList.toggle("on", x === b);
+  $("sp_shelf").classList.toggle("hidden", !shelf);
+  $("sp_line").classList.toggle("hidden", shelf);
+  updatePlaceView("sp"); saveStockPlace();
+});
+$("stockPlaceWrap").addEventListener("input", () => { updatePlaceView("sp"); saveStockPlace(); });
+
+// 同一个条码在「待导出」里已经有一条了：当作重新盘到（更新位置和时间），不再重复出一行
+async function recordStock(barcode, line) {
+  barcode = String(barcode || "").trim();
+  if (!barcode) return;
+  const all = await allStock();
+  const dup = all.find(r => r.barcode === barcode && !r.exported);
+  try {
+    if (dup) {
+      await putStock({ ...dup, line: line || dup.line, time: Date.now() });
+      toast(`「${barcode}」已经扫过，位置已更新`);
+    } else {
+      await putStock({ barcode, line, time: Date.now(), exported: false });
+      toast("已扫到：" + barcode);
+    }
+  } catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
+  refreshStockList(); refreshStockCount(); refreshStockChips();
+}
+$("stockCode").addEventListener("input", e => {   // 条码只有英文字母和数字
+  if (!e.isComposing) e.target.value = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+});
+$("stockCode").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const code = $("stockCode").value.trim(); $("stockCode").value = "";
+  if (!code) return;
+  const p = currentStockPlace();
+  if (p.error) { toast(p.error); return; }
+  recordStock(code, p.value);
+});
+
+// 拍照连续扫码：不像录入页那样扫一下就关掉，这里一直开着，扫到一个记一条，直到点「完成」
+// 扫描全屏时不放整套选择器（太占地方），只显示当前位置；要改位置就点「完成」回主页面改，再重新开始扫
+let stockReader = null, lastStock = { code: "", t: 0 };
+async function startStockScan() {
+  const blocked = cameraBlocked("需要用 https 网址打开才能拍照扫码，可以先用扫码枪或手动输入");
+  if (blocked) { toast(blocked); return; }
+  try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
+  $("stockScanPlaceView").textContent = currentStockPlace().value || "未填位置";
+  $("stockScanMsg").textContent = "对准条码，可以连续扫，不用逐个确认";
+  $("stockScan").classList.remove("hidden");
+  const rd = stockReader = new window.ZXing.BrowserMultiFormatReader(scanHints(), 200);
+  try {
+    await openCamera(rd, "stockVideo", $("stockScanMsg"), onStockDecode);
+    if (stockReader !== rd) rd.reset();
+  } catch (e) {
+    if (stockReader === rd) { stopStockScan(); toast(cameraErrorMsg(e)); }
+  }
+}
+function stopStockScan() {
+  if (stockReader) { try { stockReader.reset(); } catch {} stockReader = null; }
+  $("stockScan").classList.add("hidden");
+}
+function onStockDecode(text) {
+  text = String(text || "").trim(); if (!text) return;
+  const now = Date.now();
+  if (text === lastStock.code && now - lastStock.t < 1500) return;     // 同一个码短时间内多次识别，去抖，别记两条
+  lastStock = { code: text, t: now };
+  if (navigator.vibrate) navigator.vibrate(60);
+  const p = currentStockPlace();
+  if (p.error) { $("stockScanMsg").textContent = p.error; return; }    // 位置填了一半（比如选了楼栋没选楼层），先不记，提示改完整
+  $("stockScanMsg").textContent = "已扫到：" + text;
+  recordStock(text, p.value);
+}
+$("stockScanOpen").onclick = startStockScan;
+$("stockScanBtn").onclick = startStockScan;
+$("stockScanClose").onclick = stopStockScan;
+
+async function refreshStockChips() {
+  const all = await allStock();
+  const lines = [...new Set(all.map(r => r.line).filter(Boolean))].slice(-8).reverse();
+  $("stockChips").innerHTML = lines.map(l => `<button type="button" class="chip" data-l="${safe(l)}">${safe(l)}</button>`).join("");
+}
+// 点最近用过的位置：直接把它拆回楼栋/楼层/货架-产线这几项，跟手填的效果一样
+$("stockChips").addEventListener("click", e => {
+  const b = e.target.closest("[data-l]"); if (!b) return;
+  renderStockPlace(parsePlace(b.dataset.l)); saveStockPlace();
+});
+async function refreshStockList() {
+  const recs = (await allStock()).sort((a, b) => b.time - a.time);
+  $("stockList").innerHTML = recs.length ? recs.map(r => {
+    const d = new Date(r.time), p2 = n => String(n).padStart(2, "0");
+    const when = `${d.getMonth() + 1}/${d.getDate()}<br>${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    return `<div class="item"><div class="t"><div class="n">${r.exported ? '<span class="tag done">已导出</span>' : ""}<span data-raw>${safe(r.barcode)}</span></div><div class="s" data-raw>${safe(r.line || "未填位置")}</div></div><div class="when">${when}</div><button class="btn ghost" data-delstock="${r.id}" style="padding:4px 10px;font-size:12px;flex:none">删除</button></div>`;
+  }).join("") : `<div class="empty">还没有记录</div>`;
+}
+$("stockList").addEventListener("click", async e => {
+  const b = e.target.closest("[data-delstock]"); if (!b) return;
+  await delStock(Number(b.dataset.delstock)); refreshStockList(); refreshStockCount();
+});
+async function refreshStockCount() {
+  const all = await allStock(), fresh = all.filter(r => !r.exported).length;
+  $("stockInfo").textContent = all.length ? `共 ${all.length} 条，待导出 ${fresh}` : "还没有记录";
+}
+
+function buildStockCsv(recs) {
+  const p2 = n => String(n).padStart(2, "0"), enc = new TextEncoder();
+  const cols = ["条码", "位置", "扫描时间"];
+  const lines = [cols.map(csvCell).join(",")];
+  for (const r of recs) {
+    const d = new Date(r.time);
+    const ts = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+    lines.push([r.barcode, r.line || "", ts].map(csvCell).join(","));
+  }
+  // UTF-8 带 BOM：手机自带的「文件」App 和电脑 Excel 打开都不乱码；表头「条码」「位置」跟电脑端「导入手持端文件」认的列名一致，能直接导入
+  return new Blob([enc.encode("﻿" + lines.join("\r\n") + "\r\n")], { type: "text/csv" });
+}
+async function doStockExport() {
+  const recs = (await allStock()).filter(r => !r.exported).sort((a, b) => a.time - b.time);
+  if (!recs.length) { toast("没有待导出的记录"); return; }
+  const blob = buildStockCsv(recs), name = `盘点_${stamp()}.csv`;
+  const file = new File([blob], name, { type: "text/csv" });
+  pending = { kind: "stock", ids: recs.map(r => r.id), blob, file, name,
+    canShare: !!(navigator.canShare && navigator.canShare({ files: [file] })) };
+  $("sheetInfo").textContent = `${recs.length} 条记录` + (pending.canShare ? "" : "。此环境不支持直接分享，请点「保存到手机」，再打开微信自己发一条消息（比如发给「文件传输助手」），点「+」选「文件」找到它发送");
+  openExportSheet();
+}
+
 // 每台都不一样的项：同款连续录入时不沿用
 const UNIQUE =["设备编号", "治具编号", "物品编号", "出厂编号", "资产编号", "标签编号"];
 
@@ -1695,7 +1774,6 @@ function parsePlace(text) {
 // 以某条记录为模板新增：带入除编号外的全部信息，只需改编号、拍照
 function copyRec(r) {
   type = r.type; extra = {};
-  setRoom(roomOf(r));
   for (const k of Object.keys(kept)) if (k.startsWith(type)) delete kept[k];
   for (const f of TYPES[type].fields) {
     if (f.place) kept[type + "place"] = parsePlace(r.data[f.k]);
@@ -1728,10 +1806,9 @@ async function renderList() {
     const def = TYPES[r.type];
     const name = displayName(def, r.data);
     const code = r.data[def.fields[0].k], serial = r.data["出厂编号"];
-    const line2 = def.cardLike ? r.data["库位"] : (nameKeyOf(def) ? [code || "自动编号", serial ? "SN " + serial : ""] : [r.data["资产编号"], r.data["厂商"]]).filter(Boolean).join(" · ");
+    const line2 = [code || "自动编号", serial ? "SN " + serial : ""].filter(Boolean).join(" · ");
     const place = r.data["库位"] || r.data["位置"];
-    const line3 = def.cardLike ? r.data["备注"] : def.noPhoto ? [r.data["适用产品料号"], place].filter(Boolean).join(" · ")
-      : [r.type === "fixture" ? "" : r.data["型号"] || r.data["规格"], T(r.data["类别"] || ""), place].filter(Boolean).join(" · ");
+    const line3 = [r.type === "fixture" ? "" : r.data["型号"] || r.data["规格"], T(r.data["类别"] || ""), place].filter(Boolean).join(" · ");
     const pic = recPhoto(r, recs);        // 同型号共用照片：没拍的用同型号那张，淡色显示
     let img = `<div class="ph"></div>`;
     if (pic.blob) { const u = URL.createObjectURL(pic.blob); urls.push(u); img = `<img src="${u}" class="${pic.shared ? "shared" : ""}" alt="">`; }
@@ -1758,7 +1835,7 @@ async function openDetail(id) {
   const pic = recPhoto(r, recs);
   let photos = pic.blob ? fig(pic.blob, pic.shared ? "同型号照片" : "照片") : "";
   for (const k of def.extraPhotos || []) if (xget(r, k)) photos += fig(xget(r, k), k);
-  const rows = displayFields(def).filter(f => (!f.hidden || f.parts) && r.data[f.k]).map(f => `<div class="k">${f.label || f.k}</div><div class="v"${f.opts ? "" : " data-raw"}>${safe(r.data[f.k])}</div>`).join("");
+  const rows = displayFields(def).filter(f => r.data[f.k]).map(f => `<div class="k">${f.k}</div><div class="v"${f.opts ? "" : " data-raw"}>${safe(r.data[f.k])}</div>`).join("");
   const when = new Date(r.created).toLocaleString("zh-CN", { hour12: false });
   $("dTitle").innerHTML = `<span>${def.label}</span> · <span data-raw>${safe(displayName(def, r.data))}</span>`;
   $("dBody").innerHTML = (photos ? `<div class="dphotos">${photos}</div>` : "") +
@@ -1782,7 +1859,6 @@ function clearKept() { for (const k of Object.keys(kept)) delete kept[k]; }
 function editRec(r) {
   closeDetail();
   editingId = r.id; type = r.type; extra = { ...(r.extra || {}) };
-  setRoom(roomOf(r)); renderTypes();
   if (extra["标签照片"] && !extra["设备标签照片"]) { extra["设备标签照片"] = extra["标签照片"]; delete extra["标签照片"]; }
   clearKept();
   for (const f of TYPES[type].fields) {
@@ -1845,37 +1921,30 @@ async function buildPackage() {
   if (!recs.length) return null;
   const enc = new TextEncoder(), files = [], t = stamp();
   let n = 0;
-  const tables = new Map();                                            // 表名 → { keys, extras, rows }：物品卡片、端子、其他房间的物品共用「物品」表，列取各类型的并集
   for (const [key, def] of Object.entries(TYPES)) {
     const mine = recs.filter(r => r.type === key);
     if (!mine.length) continue;
-    const name = def.table || def.label;
-    if (!tables.has(name)) tables.set(name, { keys: [], extras: def.extraPhotos || [], rows: [] });
-    const table = tables.get(name);
-    for (const f of def.fields) if (!table.keys.includes(f.k)) table.keys.push(f.k);
-    table.rows.push(...mine);
-  }
-  for (const [tableName, { keys, extras, rows: mine }] of tables) {
-    const cols = [...keys, PHOTO_COL, ...extras];
+    const extras = def.extraPhotos || [];
+    const cols = [...def.fields.map(f => f.k), PHOTO_COL, ...extras];
     const lines = [cols.map(csvCell).join(",")];
     for (const r of mine) {
       let file = "";
       if (r.photo) {
-        file = `photos/${r.type}_${t}_${String(++n).padStart(3, "0")}.jpg`;
+        file = `photos/${key}_${t}_${String(++n).padStart(3, "0")}.jpg`;
         files.push({ name: file, data: new Uint8Array(await r.photo.arrayBuffer()) });
       }
       const more = [];
       for (const k of extras) {
         const blob = xget(r, k);
         if (!blob) { more.push(""); continue; }
-        const name = `photos/${r.type}_${t}_${String(++n).padStart(3, "0")}_${{ "设备标签照片": "label", "资产标签照片": "asset", "铭牌照片": "plate" }[k]}.jpg`;
+        const name = `photos/${key}_${t}_${String(++n).padStart(3, "0")}_${{ "设备标签照片": "label", "资产标签照片": "asset", "铭牌照片": "plate" }[k]}.jpg`;
         files.push({ name, data: new Uint8Array(await blob.arrayBuffer()) });
         more.push(name);
       }
-      lines.push([...keys.map(k => r.data[k] || ""), file, ...more].map(csvCell).join(","));
+      lines.push([...def.fields.map(f => r.data[f.k] || ""), file, ...more].map(csvCell).join(","));
     }
     // UTF-8 带 BOM：Excel 打开不乱码，电脑端导入也能识别
-    files.unshift({ name: `${tableName}.csv`, data: enc.encode("﻿" + lines.join("\r\n") + "\r\n") });
+    files.unshift({ name: `${def.label}.csv`, data: enc.encode("﻿" + lines.join("\r\n") + "\r\n") });
   }
   return { blob: makeZip(files), name: `采集_${t}.zip`, ids: recs.map(r => r.id), photos: n };
 }
@@ -1904,7 +1973,7 @@ async function doItemExport() {
   const pkg = await buildPackage();
   if (!pkg) { toast("没有待导出的记录"); return; }
   const file = new File([pkg.blob], pkg.name, { type: "application/zip" });
-  pending = { pkg, file, blob: pkg.blob, name: pkg.name,
+  pending = { kind: "item", pkg, file, blob: pkg.blob, name: pkg.name,
     canShare: !!(navigator.canShare && navigator.canShare({ files: [file] })) };
   $("sheetInfo").textContent = `${pkg.ids.length} 条记录，${pkg.photos} 张照片，${(pkg.blob.size / 1048576).toFixed(1)} MB` +
     (pending.canShare ? "" : "。此环境不支持直接分享，请点「保存到手机」，再打开微信自己发一条消息（比如发给「文件传输助手」），点「+」选「文件」找到它发送");
@@ -1913,6 +1982,12 @@ async function doItemExport() {
 function closeSheet() { $("mask").classList.add("hidden"); pending = null; }
 async function finish(how) {
   const p = pending; closeSheet();
+  if (p.kind === "stock") {
+    for (const id of p.ids) { const r = (await allStock()).find(x => x.id === id); if (r) { r.exported = true; await putStock(r); } }
+    refreshStockList(); refreshStockCount();
+    toast(`${how}：${p.ids.length} 条`);
+    return;
+  }
   sel.clear();
   await markExported(p.pkg.ids);
   updateSel();
@@ -1939,24 +2014,22 @@ function saveNow() {
 $("tabs").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const tab = b.dataset.tab;
-  const wasHere = b.classList.contains("on");                    // 第一次点只是回到这个页面；已经在这个页面上再点才弹出房间选择
   for (const x of $("tabs").children) x.classList.toggle("on", x === b);
   $("pageNew").classList.toggle("hidden", tab !== "new");
   $("pageList").classList.toggle("hidden", tab !== "list");
+  $("pageStock").classList.toggle("hidden", tab !== "stock");
+  $("pageMap").classList.toggle("hidden", tab !== "map");
+  $("main").classList.toggle("map-mode", tab === "map");
+  document.querySelector("body > .bar").classList.toggle("hidden", tab === "map");
   $("save").classList.toggle("hidden", tab !== "new");
   $("clearForm").classList.toggle("hidden", tab !== "new" || !!editingId);
+  $("export").classList.toggle("hidden", tab === "stock");
+  $("stockScanBtn").classList.toggle("hidden", tab !== "stock");
+  $("stockExport").classList.toggle("hidden", tab !== "stock");
   if (tab === "list") renderList();
-  const open = tab === "new" && wasHere && e.isTrusted && !editingId && $("roomMenu").classList.contains("hidden");
-  $("roomMenu").classList.toggle("hidden", !open);               // 在录入页上再点一下「录入」才弹出房间选择（再点一下收起）
+  if (tab === "stock") { refreshStockList(); refreshStockCount(); refreshStockChips(); }
+  if (tab === "map") enterMap("browse");
 });
-$("roomMenu").addEventListener("click", e => {
-  const b = e.target.closest("button"); if (!b) return;
-  $("roomMenu").classList.add("hidden");
-  if (b.dataset.room === room) return;
-  setRoom(b.dataset.room);
-  clearKept(); extra = {}; renderTypes(); renderForm();
-});
-document.addEventListener("click", e => { if (!e.target.closest("#roomMenu, #tabs")) $("roomMenu").classList.add("hidden"); });
 $("types").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   type = b.dataset.type; extra = {}; renderTypes(); renderForm();
@@ -1973,7 +2046,6 @@ $("fields").addEventListener("click", e => {
 $("fields").addEventListener("input", e => {
   const el = e.target, k = el.id && el.id.slice(2);
   if (el.dataset && el.dataset.code && !e.isComposing) { const c = codeClean(k, el.value); if (c !== el.value) el.value = c; }
-  if (el.classList && el.classList.contains("partin") && !e.isComposing) { const c = partClean(el.value); if (c !== el.value) el.value = c; }
   if (k === "型号") fillMaker();
   updatePlaceView(); updatePhotoHint(); syncFilled(); });
 $("fields").addEventListener("change", () => { toggleWhen(); syncFilled(); });
@@ -1989,26 +2061,6 @@ $("fields").addEventListener("focusout", e => {
 });
 $("fields").addEventListener("click", e => {
   const b = e.target.closest("[data-scan]"); if (b) startScan(b.dataset.scan);
-  if (e.target.closest("[data-addpart]")) {
-    const box = $("partsBox"); box.insertAdjacentHTML("beforeend", partRow(""));
-    box.lastElementChild.querySelector("input").focus();
-  }
-  const del = e.target.closest("[data-delpart]"); if (del) { del.closest(".fl").remove(); syncFilled(); }
-  const chip = e.target.closest("[data-cc]");                               // 类型按钮：点一下选中（再点一下取消）
-  if (chip) {
-    const box = chip.parentElement, input = box.nextElementSibling, on = !chip.classList.contains("on");
-    box.querySelectorAll(".cc").forEach(c => c.classList.remove("on"));
-    chip.classList.toggle("on", on); input.value = on ? chip.dataset.cc : "";
-  }
-  const add = e.target.closest("[data-ccadd]");                             // 新类型：记在这台手机里，电脑端导入时自动加进类别列表
-  if (add) {
-    const name = (prompt("新的类型，例如 加工件", "") || "").replace(/[\s,，"]+/g, "").slice(0, 20);
-    if (!name) return;
-    try { localStorage.setItem("customCats", JSON.stringify([...new Set([...customCats(), name])])); } catch {}
-    const input = add.parentElement.nextElementSibling;
-    if (!input.value) input.value = name;
-    snapshotForm(); renderForm();
-  }
 });
 $("scanCancel").onclick = stopScan;
 $("xphotos").addEventListener("click", e => {
@@ -2031,6 +2083,7 @@ document.addEventListener("click", e => {
 $("lb").onclick = () => { $("lb").classList.add("hidden"); $("lbImg").removeAttribute("src"); };
 $("save").onclick = () => save().catch(e => toast("保存失败：" + (e && e.message ? e.message : e)));
 $("export").onclick = () => doItemExport().catch(() => toast("导出失败"));
+$("stockExport").onclick = () => doStockExport().catch(() => toast("导出失败"));
 // 清空当前填写的内容（信息、照片、沿用下来的内容全部清掉）
 $("clearForm").onclick = () => {
   const filled = [...$("fields").querySelectorAll("input,select,textarea")].some(e => e.value) || photo || Object.keys(extra).length;
@@ -2088,7 +2141,8 @@ $("langBtn").onclick = () => {
   refreshMapLang();
   if (!$("pageList").classList.contains("hidden")) renderList();
 };
-setRoom(room); renderTypes(); renderForm(); refreshCount(); refreshModelPhotos(); applyLang(); setupMap(); setupPicker();
+renderTypes(); renderForm(); refreshCount(); refreshModelPhotos(); applyLang(); setupMap();
+refreshStockCount(); refreshStockChips();
 if (!window.isSecureContext) $("insecureBar").classList.remove("hidden");
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
