@@ -1,13 +1,15 @@
 // 首次打开后把页面缓存到手机，之后没网也能用。改了页面就把版本号加一。
-const CACHE = "collector-v64";
+const CACHE = "collector-v65";
 // 页面本身必须缓存成功；位置库、地图这些大文件单独缓存，失败了也不影响页面更新（否则新版会装不上、一直停在旧版）
 const FILES = ["./", "index.html", "zxing.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 const BIG = ["locations.js", "marks.js", "makers.js", "maps/v1-2f.webp", "maps/v2-2f.webp", "maps/v2-3f.webp", "maps/v3-2f.webp", "maps/v3-2f-mofang.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(async c => {
-    await c.addAll(FILES);
-    await Promise.allSettled(BIG.map(f => c.add(f)));
+    // cache:"reload" skips the 10-minute HTTP cache, otherwise a new worker can store the old page
+    const fresh = f => new Request(f, { cache: "reload" });
+    await c.addAll(FILES.map(fresh));
+    await Promise.allSettled(BIG.map(f => c.add(fresh(f))));
   }).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => {

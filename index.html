@@ -244,7 +244,9 @@ input[readonly] { background:var(--line); color:var(--sub); }
 .scanbtn { height:40px; }
 .ptitle { font-size:11px; color:var(--sub); margin-bottom:4px; }
 .ptitle b { color:var(--danger); }
-header .hr { display:flex; align-items:center; gap:8px; }
+header .hr, header .hl { display:flex; align-items:center; gap:8px; }
+#updBtn { background:rgba(255,255,255,.2); color:#fff; border:1px solid rgba(255,255,255,.65); border-radius:12px; padding:2px 10px; font-size:12px; }
+#updBtn.new { background:#fff; color:var(--main); font-weight:600; }
 #langBtn { background:rgba(255,255,255,.2); color:#fff; border:1px solid rgba(255,255,255,.65); border-radius:12px; padding:2px 10px; font-size:12px; }
 
 /* ---- 操作按钮放顶部 ---- */
@@ -265,7 +267,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
 </style>
 </head>
 <body>
-<div class="top"><header><h1>物品采集</h1><div class="hr"><span id="count"></span><button id="langBtn" type="button">Tiếng Việt</button></div></header>
+<div class="top"><header><div class="hl"><h1>物品采集</h1><button id="updBtn" type="button">检查更新</button></div><div class="hr"><span id="count"></span><button id="langBtn" type="button">Tiếng Việt</button></div></header>
   <div class="seg" id="tabs">
     <button data-tab="new" class="on"><span id="roomLabel">V3-2F-模房</span> ▾</button>
     <button data-tab="list">已记录</button>
@@ -1250,6 +1252,12 @@ const VI = {
  "清空": "Xóa nhập",
  "清空当前填写的内容？": "Xóa nội dung đang nhập?",
  "已清空": "Đã xóa",
+ "检查更新": "Kiểm tra cập nhật",
+ "检查中…": "Đang kiểm tra…",
+ "点此更新": "Bấm để cập nhật",
+ "已是最新版": "Đã là bản mới nhất",
+ "发现新版，点按钮更新（已录的记录不会丢）": "Có bản mới, bấm nút để cập nhật (dữ liệu đã nhập không mất)",
+ "检查失败，请确认已联网": "Kiểm tra thất bại, hãy kiểm tra mạng",
  "微信里不能下载，请点右上角「···」→「在浏览器打开」后再导出": "Trong WeChat không tải được, hãy bấm 「···」 góc phải → 「Mở bằng trình duyệt」 rồi xuất",
  "你在微信内置浏览器里，它不支持下载和分享。请点右上角「···」→「在浏览器打开」（iPhone 选 Safari，安卓选 Chrome 等），在那里导出。": "Bạn đang dùng trình duyệt trong WeChat, không hỗ trợ tải và chia sẻ. Hãy bấm 「···」 góc phải → 「Mở bằng trình duyệt」 (iPhone chọn Safari, Android chọn Chrome…) rồi xuất ở đó.",
  "全选": "Chọn tất cả",
@@ -2087,6 +2095,27 @@ setRoom(room); renderTypes(); renderForm(); refreshCount(); refreshModelPhotos()
 if (!window.isSecureContext) $("insecureBar").classList.remove("hidden");
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+
+// 检查更新：拿线上 sw.js 里的版本号，和手机里正在用的缓存版本比；不一样就让新版下载好，再由用户点一下才刷新（不会打断正在填的内容）
+const cacheVer = async () => (await caches.keys()).filter(k => k.startsWith("collector-")).sort().pop() || "";
+$("updBtn").onclick = async () => {
+  const b = $("updBtn");
+  if (b.classList.contains("new")) { location.reload(); return; }
+  b.disabled = true; b.textContent = "检查中…";
+  try {
+    const live = ((await (await fetch("sw.js?t=" + Date.now(), { cache: "no-store" })).text()).match(/CACHE = "([^"]+)"/) || [])[1];
+    if (!live) throw new Error("no version");
+    if (live === await cacheVer()) { toast((lang === "vi" ? "Đã là bản mới nhất (" : "已是最新版（") + live.replace("collector-", "") + (lang === "vi" ? ")" : "）")); b.textContent = "检查更新"; }
+    else {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) await reg.update();
+      for (let i = 0; i < 20 && live !== await cacheVer(); i++) await new Promise(r => setTimeout(r, 500));
+      if (live === await cacheVer()) { toast("发现新版，点按钮更新（已录的记录不会丢）"); b.textContent = "点此更新"; b.classList.add("new"); }
+      else { toast("检查失败，请确认已联网"); b.textContent = "检查更新"; }
+    }
+  } catch { toast("检查失败，请确认已联网"); b.textContent = "检查更新"; }
+  b.disabled = false;
+};
 </script>
 </body>
 </html>
