@@ -142,6 +142,10 @@ textarea { min-height:64px; resize:vertical; }
 .scan .frame { position:relative; width:72vw; max-width:360px; height:36vw; max-height:200px; border:3px solid #4c8dff; border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
 .scan p, .scan .btn { position:relative; margin:0; }
 .scan .btn { background:#fff; color:#111; }
+.scan video { transform-origin:center; }
+.zoombar { position:relative; display:flex; gap:8px; }
+.zoombar button { background:rgba(0,0,0,.45); color:#fff; border:1px solid rgba(255,255,255,.7); border-radius:16px; padding:6px 14px; font-size:15px; }
+.zoombar button.on { background:#fff; color:#111; }
 .mask { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
 .sheet { background:var(--card); width:100%; max-width:640px; border-radius:16px 16px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); }
 .sheet h2 { margin:0 0 4px; font-size:17px; }
@@ -324,6 +328,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
   <video id="scanVideo" playsinline muted></video>
   <div class="frame"></div>
   <p id="scanMsg">把条码或二维码放进框里，自动识别</p>
+  <div class="zoombar"><button type="button" data-z="1">1×</button><button type="button" data-z="2">2×</button><button type="button" data-z="3">3×</button><button type="button" id="camSwap" class="hidden">换镜头</button></div>
   <button class="btn" id="scanCancel" type="button">取消</button>
 </div>
 <div class="mask hidden" id="detail">
@@ -1252,6 +1257,7 @@ const VI = {
  "清空": "Xóa nhập",
  "清空当前填写的内容？": "Xóa nội dung đang nhập?",
  "已清空": "Đã xóa",
+ "换镜头": "Đổi camera",
  "检查更新": "Kiểm tra cập nhật",
  "检查中…": "Đang kiểm tra…",
  "点此更新": "Bấm để cập nhật",
@@ -1597,10 +1603,14 @@ function loadZXing() {
     const s = document.createElement("script"); s.src = "zxing.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s);
   });
 }
-// iPhone 的 Safari 不指定分辨率时只给 640x480，条码在画面里太小认不出来，所以要 720p。
+// iPhone 的 Safari 不指定分辨率时只给 640x480，条码在画面里太小认不出来，所以要指定高分辨率。
 // iPhone 还可能拒绝 video.play()（等相机权限弹窗时失去了「点击」这个动作；低电量模式也会），
 // 这时 ZXing 一直等「开始播放」，既没画面也不报错——所以 3 秒还没出画面就提示，点一下屏幕手动开始。
-const CAM_CONSTRAINTS = { audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } };
+// 1080p：iPhone 对焦最近要 15~20 厘米，条码只能离远点拿，画面里就小，分辨率高一点才认得出。
+let camDevices = [], camIdx = -1, digZoom = 1;
+let camZoom = 2;
+try { camZoom = Number(localStorage.getItem("camZoom")) || 2; } catch {}
+const camConstraints = () => ({ audio: false, video: { ...(camIdx >= 0 ? { deviceId: { exact: camDevices[camIdx].deviceId } } : { facingMode: { ideal: "environment" } }), width: { ideal: 1920 }, height: { ideal: 1080 } } });
 const CAM_HINT = "画面没出来？点一下屏幕";
 const IN_APP_BROWSER = /MicroMessenger|Zalo|FBAN|FBAV|Instagram|Line\/|DingTalk/i.test(navigator.userAgent);
 function scanHints() {
@@ -1633,7 +1643,8 @@ function useRoiDecode(rd) {
   let n = 0;
   rd.timeBetweenDecodingAttempts = 100;     // 没扫到时库默认 0 毫秒就重试，手机会一直满负荷
   rd.decode = video => {
-    const [fx, fy, fw, fh, invert] = ROI_CYCLE[n++ % ROI_CYCLE.length];
+    let [fx, fy, fw, fh, invert] = ROI_CYCLE[n++ % ROI_CYCLE.length];
+    if (digZoom > 1) { const o = (1 - 1 / digZoom) / 2; fx = o + fx / digZoom; fy = o + fy / digZoom; fw /= digZoom; fh /= digZoom; }   // only the zoomed-in part is on screen
     const sw = Math.round(video.videoWidth * fw), sh = Math.round(video.videoHeight * fh);
     if (!sw || !sh) throw new Z.NotFoundException();      // 画面还没出来
     cv.width = sw; cv.height = sh;
@@ -1643,12 +1654,33 @@ function useRoiDecode(rd) {
     return rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src)));
   };
 }
+const camTrack = v => v.srcObject && v.srcObject.getVideoTracks()[0];
+// 用镜头自带的变焦（有就用）；没有就把画面放大，识别也只取放大后看得见的那一块
+function setZoom(z) {
+  camZoom = z; try { localStorage.setItem("camZoom", z); } catch {}
+  const v = $("scanVideo"), t = camTrack(v), cap = t && t.getCapabilities && t.getCapabilities().zoom;
+  if (cap) { t.applyConstraints({ advanced: [{ zoom: Math.min(Math.max(z, cap.min), cap.max) }] }).catch(() => {}); digZoom = 1; v.style.transform = ""; }
+  else { digZoom = z; v.style.transform = z > 1 ? `scale(${z})` : ""; }
+  document.querySelectorAll(".zoombar [data-z]").forEach(b => b.classList.toggle("on", Number(b.dataset.z) === z));
+}
+async function afterCamera(v) {
+  const t = camTrack(v);
+  if (t) t.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+  setZoom(camZoom);
+  try {
+    if (!camDevices.length) camDevices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput" && !/front|user|前置/i.test(d.label));
+    const cur = t && t.getSettings && t.getSettings().deviceId;
+    if (cur) camIdx = camDevices.findIndex(d => d.deviceId === cur);
+  } catch {}
+  $("camSwap").classList.toggle("hidden", camDevices.length < 2);
+}
 // 让 rd 开始用相机扫；画面出来（resolve）之前如果太久，就在 msgEl 里提示点屏幕
 async function openCamera(rd, videoId, msgEl, onText) {
   useRoiDecode(rd);
   const orig = msgEl.textContent, timer = setTimeout(() => { msgEl.textContent = CAM_HINT; }, 3000);
   try {
-    await rd.decodeFromConstraints(CAM_CONSTRAINTS, videoId, result => { if (result) onText(result.getText()); });
+    await rd.decodeFromConstraints(camConstraints(), videoId, result => { if (result) onText(result.getText()); });
+    await afterCamera($(videoId));
   } finally {
     clearTimeout(timer);
     if (msgEl.textContent === CAM_HINT) msgEl.textContent = orig;
@@ -1663,6 +1695,9 @@ async function startScan(id) {
   try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
   scanTarget = id;
   $("scan").classList.remove("hidden");
+  await runCamera();
+}
+async function runCamera() {
   const rd = reader = new window.ZXing.BrowserMultiFormatReader(scanHints(), 250);
   try {
     await openCamera(rd, "scanVideo", $("scanMsg"), finishScan);
@@ -1671,6 +1706,13 @@ async function startScan(id) {
     if (reader === rd) { stopScan(); toast(cameraErrorMsg(e)); }
   }
 }
+document.querySelectorAll(".zoombar [data-z]").forEach(b => b.onclick = () => setZoom(Number(b.dataset.z)));
+$("camSwap").onclick = () => {
+  if (!reader || camDevices.length < 2) return;
+  camIdx = (camIdx + 1) % camDevices.length;
+  try { reader.reset(); } catch {}
+  runCamera();
+};
 function stopScan() {
   if (reader) { try { reader.reset(); } catch {} reader = null; }
   $("scan").classList.add("hidden");
