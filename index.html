@@ -139,7 +139,7 @@ textarea { min-height:64px; resize:vertical; }
 .scanbtn { flex:none; border:1px solid var(--main); background:none; color:var(--main); border-radius:8px; padding:0 14px; font-size:15px; }
 .scan { position:fixed; inset:0; z-index:30; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#fff; }
 .scan video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-.scan .frame { position:relative; width:72vw; max-width:360px; height:36vw; max-height:200px; border:3px solid #4c8dff; border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
+.scan .frame { position:relative; width:92vw; max-width:560px; height:64vw; max-height:380px; border:3px solid #4c8dff; border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
 .scan p, .scan .btn { position:relative; margin:0; }
 .scan .btn { background:#fff; color:#111; }
 #camSwap { position:relative; background:rgba(0,0,0,.45); color:#fff; border:1px solid rgba(255,255,255,.7); border-radius:16px; padding:6px 14px; font-size:15px; }
@@ -1632,9 +1632,9 @@ function cameraErrorMsg(e) {
 //    黑条白底的条码永远读不出来（所有手机都扫不出）。自己截图就不经过这个计数器。
 // 2) 整帧里除了条码还有大片金属 / 板子时，它判断黑白会被带偏（真实标签实测：同一个条码整帧读不出，
 //    截取中间条带就能读出，反过来也有）。所以每次换一种截法轮着试。
-// 另外条码小的时候，只截条码周围一小块比整帧好认（等于自动变焦）：蓝框里的、蓝框放大 1.6 倍的、再大的方块，都轮着试。
+// 另外条码小的时候，只截条码周围一小块比整帧好认（等于自动变焦）：蓝框里的、蓝框缩小到 0.6 倍的、蓝框放大 1.4 倍的，都轮着试。
 // 截法 = [x, y, 宽, 高（占整帧的比例）, 是否反色]；"frame" = 蓝框所在的那一块，数字是放大倍数。
-const ROI_CYCLE = [["frame", 1.6], [0, 0, 1, 1, false], ["frame", 1], [0.1, 0.3, 0.8, 0.4, false], ["frame", 2.4], [0, 0, 1, 1, true], [0.2, 0.35, 0.6, 0.3, false], [0.05, 0.375, 0.9, 0.25, false]];
+const ROI_CYCLE = [["frame", 1], [0, 0, 1, 1, false], ["frame", 0.6], [0.1, 0.3, 0.8, 0.4, false], ["frame", 1.4], [0, 0, 1, 1, true], [0.2, 0.35, 0.6, 0.3, false], [0.05, 0.375, 0.9, 0.25, false]];
 const MAX_SIDE = 1600;                       // 整帧在 4K 下太大，缩到这个边长再认（只截一小块时不缩，保留细节）
 // 蓝框在视频画面里的位置（占整帧的比例）；视频是铺满屏幕裁切显示的（object-fit: cover），要换算
 function frameRoi(video, k) {
