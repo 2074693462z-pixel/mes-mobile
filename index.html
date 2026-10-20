@@ -259,9 +259,8 @@ body { display:flex; flex-direction:column; height:100vh; height:100dvh; overflo
 .top { position:relative; flex:none; }
 .top #tabs { margin:6px 10px 0; }
 main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding:8px 10px; }
-.bar { position:static; flex:none; border-top:1px solid var(--line); border-bottom:0; padding:6px 10px; width:100%; max-width:640px; margin:0 auto; }
+.bar { position:static; flex:none; border-top:1px solid var(--line); border-bottom:0; padding:6px 10px calc(6px + env(safe-area-inset-bottom)); width:100%; max-width:640px; margin:0 auto; }
 .bar #save { flex:1.6; }
-.bar { padding-bottom:calc(6px + env(safe-area-inset-bottom)); }
 .toast { top:calc(104px + env(safe-area-inset-top)); }
 </style>
 </head>
