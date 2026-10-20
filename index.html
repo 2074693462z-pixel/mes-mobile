@@ -195,6 +195,20 @@ textarea { min-height:40px; }
 .pwin .chip { padding:6px 12px; font-size:14px; }
 .pwin .chip.act { color:var(--main); border-color:var(--main); }
 .pwin .none { color:var(--sub); font-size:13px; }
+/* 模房的「物品」= 照片卡片：先拍照，再点一下类型，选库位（页面里的编号 / 名称 / 数量都不用写） */
+.card.photo-first { display:flex; flex-direction:column; }
+.card.photo-first .ptiles { order:-1; justify-content:center; margin:2px 0 8px; }
+.card.photo-first #photoHint { order:-1; }
+.card.photo-first .ptile { width:200px; }
+.card.photo-first .ptile .pv { width:200px; height:150px; border-radius:10px; font-size:14px; }
+.card.photo-first .ptile .pv img { object-fit:contain; }
+.card.photo-first .pbtn { font-size:16px; padding:8px 0; background:var(--main); color:#fff; }
+.cchips { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 8px; }
+.cchips .cc { border:1px solid var(--line); background:var(--bg); color:var(--text); border-radius:18px; padding:8px 16px; font-size:16px; }
+.cchips .cc.on { background:var(--main); border-color:var(--main); color:#fff; font-weight:600; }
+.cchips .cc.add { color:var(--main); border-style:dashed; }
+.clabel { font-size:13px; color:var(--sub); margin-top:4px; }
+.clabel b { color:var(--danger); }
 #roomMenu { position:absolute; left:10px; top:100%; z-index:8; margin-top:-6px; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 14px rgba(0,0,0,.18); overflow:hidden; min-width:150px; }
 #roomMenu button { display:block; width:100%; border:0; background:none; color:var(--text); text-align:left; padding:10px 14px; font-size:15px; }
 #roomMenu button.on { color:var(--main); font-weight:600; }
@@ -268,7 +282,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
   <section id="pageNew">
     <div class="editbar hidden" id="editBar"><span>正在修改：<b id="editName" data-raw></b></span><button class="btn ghost" id="editCancel" type="button">取消</button></div>
     <div class="seg" id="types"></div>
-    <div class="card">
+    <div class="card" id="entryCard">
       <div id="fields"></div>
       <div class="ptiles">
         <div class="ptile">
@@ -366,6 +380,7 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
 const ITEM_CATEGORIES = ["治具", "五金", "电气", "气动", "ESD", "工具", "量具", "耗材", "配件", "劳保", "包材", "其他"];
 const UNITS = ["件", "个", "套", "对", "双", "把", "根", "条", "张", "台", "盒", "包", "卷", "米", "箱", "瓶"];
 const EQUIPMENT_CATEGORIES = ["设备", "测试", "其他"];
+const CARD_CATEGORIES = ["加工件", "电源", ...ITEM_CATEGORIES];      // 模房的物品按「类型」找；这里没有的类型点「＋ 新类型」自己加，电脑端导入时会自动加进类别列表
 const TEST_CATEGORY = "测试";          // 选了这个类别，必须填校准信息
 
 const TYPES = {
@@ -385,6 +400,17 @@ const TYPES = {
     { k: "初始库存", type: "number", req: true, hint: "这个库位放了多少，没有写 0" },
     { k: "状态", opts: ["正常", "损坏", "停用"], keep: true },
     { k: "备注", area: true },
+  ]},
+  // 模房的物品 = 照片卡片：拍一张照片 + 类型 + 库位，不记数量，名字可以不写（电脑端用类型当名字）；导出时和端子、其他房间的物品共用「物品」表
+  card: { label: "物品", table: "物品", cardLike: true,
+    layout: ["类别", "库位", "备注", "物品名称", "越南文名称", "物品编号"],
+    fields: [
+    { k: "物品编号", hidden: true },                                  // 留空，电脑端自动生成
+    { k: "物品名称", more: true, hint: "不写就用类型" },
+    { k: "越南文名称", more: true },
+    { k: "类别", label: "类型", chips: CARD_CATEGORIES, req: true, keep: true },
+    { k: "库位", place: "shelf", req: true, keep: true },
+    { k: "备注", area: true, hint: "选填" },
   ]},
   terminal: { label: "端子", table: "物品", noPhoto: true,     // 端子没有照片和条码：规格（端子料号）就是编号；和物品录进同一张表
     layout: ["规格", "物品名称", "初始库存", "库位", "类别", "单位", "状态", "低库存提醒", "备注", "越南文名称"],
@@ -1023,20 +1049,20 @@ async function allRecs() { return (await tx("records", "readonly", s => s.getAll
 const $ = id => document.getElementById(id);
 // 录入页先选房间：模房（只录端子 / 治具 / 物品，位置默认 V3-2F-模房）或其他（四类都能录，位置自己选）
 const TYPE_ORDER = ["terminal", "fixture", "item", "equipment"];
-const MOLD_TYPES = ["terminal", "fixture", "item"];
+const MOLD_TYPES = ["card", "terminal", "fixture"];
 let room = "mold";
 try { if (localStorage.getItem("room") === "other") room = "other"; } catch {}
-let type = "terminal";
+let type = "card";
 function setRoom(r) {
   room = r;
   try { localStorage.setItem("room", r); } catch {}
   $("roomLabel").textContent = r === "mold" ? MOLD_PLACE : "其他";                      // 「录入」标签直接显示选好的房间
   for (const b of $("roomMenu").children) b.classList.toggle("on", b.dataset.room === r);
-  if (!roomTypes().includes(type)) type = "terminal";
+  if (!roomTypes().includes(type)) type = roomTypes()[0];
 }
 const roomTypes = () => room === "mold" ? MOLD_TYPES : TYPE_ORDER;
 // 一条已有记录该落在哪个房间（编辑 / 复制时切过去）
-const roomOf = r => r.type !== "equipment" && String((r.data["库位"] || r.data["位置"] || "")).toUpperCase().indexOf(MOLD_PLACE) === 0 ? "mold" : "other";
+const roomOf = r => r.type === "card" ? "mold" : r.type === "item" ? "other" : r.type !== "equipment" && String((r.data["库位"] || r.data["位置"] || "")).toUpperCase().indexOf(MOLD_PLACE) === 0 ? "mold" : "other";
 let photo = null;              // Blob
 let previewUrl = null;
 const kept = {};               // 上次保存时保留下来的值
@@ -1133,6 +1159,7 @@ const VI = {
  "工装": "Đồ gá công nghệ",
  "物品采集": "Thu thập vật phẩm",
  "物品": "Vật tư",
+ "加工件": "Chi tiết gia công", "电源": "Nguồn điện", "类型": "Loại", "＋ 新类型": "＋ Loại mới", "不写就用类型": "bỏ trống sẽ dùng loại", "选填": "tùy chọn",
  "端子": "Đầu cos", "数量": "Số lượng", "端子料号": "Mã đầu cos",
  "也是它的编号，如 M509200320；右边「＋」可加适用料号": "Cũng là mã của nó, vd M509200320; bấm「＋」bên phải để thêm mã áp dụng",
  "适用产品料号": "Mã sản phẩm áp dụng",
@@ -1326,7 +1353,14 @@ function renderTypes() {
 const HALF = ["型号", "厂商", "规格", "校验人", "缺少配件", "贴标位置", "设备功率", "设备电压", "设备重量", "使用年限"];   // 带扫码按钮的编号框占满一行
 // 编号类字段只许英文字母、数字和「-」（MES 的治具条码是 M0302500232-VAA-00002）；出厂编号另外允许英文符号，都不许出现汉字 / 越南文等文字和空格
 const codeClean = (k, s) => UNIQUE.includes(k) ? String(s).replace(k === "出厂编号" ? /[^\x21-\x7E]/g : /[^A-Za-z0-9-]/g, "") : s;
+// 类型按钮：一点就选好；自己加的新类型记在这台手机里
+const customCats = () => { try { return JSON.parse(localStorage.getItem("customCats") || "[]"); } catch { return []; } };
+function chipsHtml(f, v) {
+  const list = [...new Set([...f.chips, ...customCats(), ...(v ? [v] : [])])];
+  return `<div class="clabel">${f.label || f.k}${f.req ? " <b>*</b>" : ""}</div><div class="cchips" id="cc_${f.k}">${list.map(o => `<button type="button" class="cc${o === v ? " on" : ""}" data-cc="${safe(o)}">${safe(o)}</button>`).join("")}<button type="button" class="cc add" data-ccadd="${f.k}">＋ 新类型</button></div><input type="hidden" id="f_${f.k}" value="${safe(v || "")}">`;
+}
 function fieldHtml(f) {
+  if (f.chips) return `<div class="f">${chipsHtml(f, kept[type + f.k] ?? f.def ?? "")}</div>`;
   if (f.place) return `<div class="f">${placeHtml(f, kept[type + "place"] ?? (room === "mold" ? { lib: MOLD_PLACE } : undefined))}</div>`;
   const v = f.locked ? f.def : codeClean(f.k, kept[type + f.k] ?? f.def ?? "");
   const id = "f_" + f.k;
@@ -1357,7 +1391,7 @@ function displayFields(def) {
   const by = Object.fromEntries(def.fields.map(f => [f.k, f]));
   let order = (def.layout || []).filter(k => by[k]);
   order = order.concat(def.fields.map(f => f.k).filter(k => !order.includes(k)));
-  const nameK = nameKeyOf(def), viK = "越南文名称", viFirst = lang === "vi" && !!by[viK] && !!nameK && !by[nameK].locked;
+  const nameK = nameKeyOf(def), viK = "越南文名称", viFirst = lang === "vi" && !!by[viK] && !!nameK && !by[nameK].locked && !def.cardLike;
   if (viFirst) {                                   // 越南语操作员：越南文名称放主位，中文名称与它互换、收进「更多信息」
     const a = order.indexOf(nameK), b = order.indexOf(viK);
     if (a >= 0 && b >= 0) { order[a] = viK; order[b] = nameK; }
@@ -1374,7 +1408,7 @@ function displayFields(def) {
 const nameKeyOf = def => (def.fields.find(f => /名称$/.test(f.k) && f.k !== "越南文名称") || {}).k;
 function displayName(def, data) {
   const nk = nameKeyOf(def), zh = nk ? data[nk] : "", vi = data["越南文名称"];
-  return (lang === "vi" ? (vi || zh) : (zh || vi)) || data[def.fields[0].k] || "";
+  return (lang === "vi" ? (vi || zh) : (zh || vi)) || (def.cardLike ? data["类别"] : "") || data[def.fields[0].k] || "";
 }
 // 切换语言时表单结构会变，先把已填的内容存下来再重画
 function snapshotForm() {
@@ -1411,7 +1445,7 @@ async function refreshModelPhotos() {
 }
 function photoNeeded() {
   if (TYPES[type].noPhoto) return false;
-  if (type === "item") return true;
+  if (type === "item" || TYPES[type].cardLike) return true;
   const m = $("f_型号") ? $("f_型号").value : "";
   return !(m.trim() && modelPhotos.has(modelKey(type, m)));
 }
@@ -1423,7 +1457,9 @@ function updatePhotoHint() {
   $("photoHint").classList.toggle("hidden", no);
   const need = photoNeeded();
   $("photoStar").classList.toggle("hidden", !need);
-  $("photoHint").textContent = type === "item" ? "" : need ? "同型号只需拍一张，之后的同型号不用再拍" : "这个型号已经拍过照片，可以不拍（想换也可以重拍）";
+  $("entryCard").classList.toggle("photo-first", !!TYPES[type].cardLike);   // 物品：先拍照，再点类型、选库位
+  $("keepMode").classList.toggle("hidden", !!TYPES[type].cardLike);          // 物品固定「保存后保留类型和库位」，连续拍同一个箱子
+  $("photoHint").textContent = type === "item" || TYPES[type].cardLike ? "" : need ? "同型号只需拍一张，之后的同型号不用再拍" : "这个型号已经拍过照片，可以不拍（想换也可以重拍）";
 }
 
 // 标签照片 / 铭牌照片：设备的附加照片，选填
@@ -1507,7 +1543,7 @@ async function save() {
     data["规格"] = code; data["物品编号"] = code;
   }
   const nameK = nameKeyOf(def);
-  if (nameK && !data[nameK] && !data["越南文名称"]) {
+  if (nameK && !def.cardLike && !data[nameK] && !data["越南文名称"]) {
     const k = lang === "vi" ? "越南文名称" : nameK;
     toast(`请填写「${k}」`); const el = $("f_" + k); if (el) el.focus(); return;
   }
@@ -1516,7 +1552,7 @@ async function save() {
   if (type === "equipment" && String(data["位置"] || "").toUpperCase().replace(/[/\s]+/g, "-").indexOf("V3-2F-模房") === 0) { toast(lang === "vi" ? "Phòng khuôn không để thiết bị" : "模房不放设备"); $("p_open").focus(); return; }
   if (data["校准时间"] && data["下次校准时间"] && data["下次校准时间"] <= data["校准时间"]) { toast("下次校准时间必须晚于校准时间"); $("f_下次校准时间").focus(); return; }
   if (type === "fixture" && data["资产编号"] && !extra["资产编号照片"]) { toast("填了资产编号，请拍资产编号照片"); $("xbtn_资产编号照片").focus(); return; }
-  if (!photo && photoNeeded()) { toast(type === "item" ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
+  if (!photo && photoNeeded()) { toast(type === "item" || def.cardLike ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
   if ((type === "item" || type === "terminal") && !/^\d+$/.test(String(data["初始库存"]).trim())) { toast("初始库存必须是 0 或正整数"); $("f_初始库存").focus(); return; }
   // 每一行就是一台（一件），编号不能重复
   const old = await allRecs();
@@ -1538,8 +1574,8 @@ async function save() {
   try { await putRec({ type, data, photo, extra, created: Date.now(), exported: false }); }
   catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
   extra = {};
-  const mode = $("keepMode").value;
-  try { localStorage.setItem("keepMode", mode); } catch {}
+  const mode = def.cardLike ? "common" : $("keepMode").value;
+  if (!def.cardLike) try { localStorage.setItem("keepMode", mode); } catch {}
   for (const f of def.fields) {
     if (f.place) continue;
     kept[type + f.k] = mode === "all" ? (UNIQUE.includes(f.k) || (def.noPhoto && f.k === "规格") ? undefined : data[f.k]) : (mode === "common" && f.keep ? data[f.k] : undefined);
@@ -1549,6 +1585,7 @@ async function save() {
   $("main").scrollTo({ top: 0, behavior: "smooth" });
   const n = old.filter(r => !r.exported).length + 1;
   toast(`已保存（待导出共 ${n} 条）`);
+  if (def.cardLike) setTimeout(() => { try { $("cam").click(); } catch {} }, 350);     // 物品：直接打开相机拍下一张（浏览器不允许时就算了，点「拍照」）
 }
 
 // ---- 扫码：用相机识别条码 / 二维码，填进编号框（扫码库 zxing.min.js 第一次用到时才加载）--------
@@ -1691,9 +1728,9 @@ async function renderList() {
     const def = TYPES[r.type];
     const name = displayName(def, r.data);
     const code = r.data[def.fields[0].k], serial = r.data["出厂编号"];
-    const line2 = (nameKeyOf(def) ? [code || "自动编号", serial ? "SN " + serial : ""] : [r.data["资产编号"], r.data["厂商"]]).filter(Boolean).join(" · ");
+    const line2 = def.cardLike ? r.data["库位"] : (nameKeyOf(def) ? [code || "自动编号", serial ? "SN " + serial : ""] : [r.data["资产编号"], r.data["厂商"]]).filter(Boolean).join(" · ");
     const place = r.data["库位"] || r.data["位置"];
-    const line3 = def.noPhoto ? [r.data["适用产品料号"], place].filter(Boolean).join(" · ")
+    const line3 = def.cardLike ? r.data["备注"] : def.noPhoto ? [r.data["适用产品料号"], place].filter(Boolean).join(" · ")
       : [r.type === "fixture" ? "" : r.data["型号"] || r.data["规格"], T(r.data["类别"] || ""), place].filter(Boolean).join(" · ");
     const pic = recPhoto(r, recs);        // 同型号共用照片：没拍的用同型号那张，淡色显示
     let img = `<div class="ph"></div>`;
@@ -1808,17 +1845,18 @@ async function buildPackage() {
   if (!recs.length) return null;
   const enc = new TextEncoder(), files = [], t = stamp();
   let n = 0;
-  const tables = new Map();                                            // 表名 → { def, rows }：物品和端子共用「物品」表
+  const tables = new Map();                                            // 表名 → { keys, extras, rows }：物品卡片、端子、其他房间的物品共用「物品」表，列取各类型的并集
   for (const [key, def] of Object.entries(TYPES)) {
     const mine = recs.filter(r => r.type === key);
     if (!mine.length) continue;
     const name = def.table || def.label;
-    if (!tables.has(name)) tables.set(name, { def, rows: [] });
-    tables.get(name).rows.push(...mine);
+    if (!tables.has(name)) tables.set(name, { keys: [], extras: def.extraPhotos || [], rows: [] });
+    const table = tables.get(name);
+    for (const f of def.fields) if (!table.keys.includes(f.k)) table.keys.push(f.k);
+    table.rows.push(...mine);
   }
-  for (const [tableName, { def, rows: mine }] of tables) {
-    const extras = def.extraPhotos || [];
-    const cols = [...def.fields.map(f => f.k), PHOTO_COL, ...extras];
+  for (const [tableName, { keys, extras, rows: mine }] of tables) {
+    const cols = [...keys, PHOTO_COL, ...extras];
     const lines = [cols.map(csvCell).join(",")];
     for (const r of mine) {
       let file = "";
@@ -1834,7 +1872,7 @@ async function buildPackage() {
         files.push({ name, data: new Uint8Array(await blob.arrayBuffer()) });
         more.push(name);
       }
-      lines.push([...def.fields.map(f => r.data[f.k] || ""), file, ...more].map(csvCell).join(","));
+      lines.push([...keys.map(k => r.data[k] || ""), file, ...more].map(csvCell).join(","));
     }
     // UTF-8 带 BOM：Excel 打开不乱码，电脑端导入也能识别
     files.unshift({ name: `${tableName}.csv`, data: enc.encode("﻿" + lines.join("\r\n") + "\r\n") });
@@ -1901,13 +1939,15 @@ function saveNow() {
 $("tabs").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const tab = b.dataset.tab;
+  const wasHere = b.classList.contains("on");                    // 第一次点只是回到这个页面；已经在这个页面上再点才弹出房间选择
   for (const x of $("tabs").children) x.classList.toggle("on", x === b);
   $("pageNew").classList.toggle("hidden", tab !== "new");
   $("pageList").classList.toggle("hidden", tab !== "list");
   $("save").classList.toggle("hidden", tab !== "new");
   $("clearForm").classList.toggle("hidden", tab !== "new" || !!editingId);
   if (tab === "list") renderList();
-  $("roomMenu").classList.toggle("hidden", !(tab === "new" && e.isTrusted && !editingId));      // 点「录入」弹出房间选择
+  const open = tab === "new" && wasHere && e.isTrusted && !editingId && $("roomMenu").classList.contains("hidden");
+  $("roomMenu").classList.toggle("hidden", !open);               // 在录入页上再点一下「录入」才弹出房间选择（再点一下收起）
 });
 $("roomMenu").addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
@@ -1954,6 +1994,21 @@ $("fields").addEventListener("click", e => {
     box.lastElementChild.querySelector("input").focus();
   }
   const del = e.target.closest("[data-delpart]"); if (del) { del.closest(".fl").remove(); syncFilled(); }
+  const chip = e.target.closest("[data-cc]");                               // 类型按钮：点一下选中（再点一下取消）
+  if (chip) {
+    const box = chip.parentElement, input = box.nextElementSibling, on = !chip.classList.contains("on");
+    box.querySelectorAll(".cc").forEach(c => c.classList.remove("on"));
+    chip.classList.toggle("on", on); input.value = on ? chip.dataset.cc : "";
+  }
+  const add = e.target.closest("[data-ccadd]");                             // 新类型：记在这台手机里，电脑端导入时自动加进类别列表
+  if (add) {
+    const name = (prompt("新的类型，例如 加工件", "") || "").replace(/[\s,，"]+/g, "").slice(0, 20);
+    if (!name) return;
+    try { localStorage.setItem("customCats", JSON.stringify([...new Set([...customCats(), name])])); } catch {}
+    const input = add.parentElement.nextElementSibling;
+    if (!input.value) input.value = name;
+    snapshotForm(); renderForm();
+  }
 });
 $("scanCancel").onclick = stopScan;
 $("xphotos").addEventListener("click", e => {
