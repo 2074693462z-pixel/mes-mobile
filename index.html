@@ -412,15 +412,14 @@ const TYPES = {
     { k: "备注", area: true, hint: "选填" },
   ]},
   terminal: { label: "端子", table: "物品", noPhoto: true,     // 端子没有照片和条码：规格（端子料号）就是编号；和物品录进同一张表
-    layout: ["规格", "物品名称", "初始库存", "库位", "类别", "单位", "状态", "低库存提醒", "备注", "越南文名称"],
+    layout: ["规格", "初始库存", "库位", "状态", "低库存提醒", "备注"],
     fields: [
     { k: "物品编号", hidden: true },                                  // 保存时自动 = 规格
-    { k: "物品名称", def: "端子", locked: true },                     // 端子名称固定，不能改（电脑端靠名称里的「端子」认出它）
-    { k: "越南文名称", more: true },
+    { k: "物品名称", hidden: true, fixed: "端子" },                   // 固定值，不显示、照发（电脑端靠名称里的「端子」认出它）
     { k: "规格", label: "端子料号", req: true, scan: true, plus: true, hint: "也是它的编号，如 M509200320；右边「＋」可加适用料号" },
     { k: "适用产品料号", parts: true, hidden: true },                    // 不单独占一行：点料号右边的「＋」，一个适用料号一格；导出时用空格连起来
-    { k: "类别", opts: ITEM_CATEGORIES, def: "治具", keep: true, more: true },
-    { k: "单位", opts: UNITS, def: "个", keep: true, more: true },
+    { k: "类别", hidden: true, fixed: "治具" },                       // 固定值，不显示、照发
+    { k: "单位", hidden: true, fixed: "个" },                         // 固定值，不显示、照发
     { k: "低库存提醒", type: "number", hint: "0=不提醒", more: true },
     { k: "库位", place: "shelf", req: true, keep: true },
     { k: "初始库存", label: "数量", type: "number", req: true, hint: "这个库位放了多少，没有写 0" },
@@ -428,16 +427,14 @@ const TYPES = {
     { k: "备注", area: true, more: true },
   ]},
   fixture: { label: "治具",
-    layout: ["治具编号", "资产编号", "位置", "状态", "越南文名称", "厂商", "贴标位置", "备注"],
+    layout: ["治具编号", "资产编号", "位置", "状态", "适用产品料号", "备注"],
     fields: [
     // 治具只留常用的几项在前面，其余收进「更多信息」；不填名称和类别：电脑端按编号去 MES 治具清单里对
     { k: "治具编号", req: true },
     { k: "资产编号" },
-    { k: "越南文名称", more: true },
-    { k: "厂商", more: true },
     { k: "位置", place: "shelf", req: true, keep: true },
-    { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], def: "在库", keep: true },
-    { k: "贴标位置", more: true },
+    { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], keep: true, hint: "不选 = 按 MES" },   // 选了以手机为准，留空才按 MES
+    { k: "适用产品料号", parts: true, partsBox: true, more: true },    // 一个适用料号一格，点「＋」再加；导出时用空格连起来
     { k: "备注", area: true, more: true },
   ], extraPhotos: ["资产编号照片"] },
   equipment: { label: "设备",
@@ -1162,6 +1159,8 @@ const VI = {
  "端子": "Đầu cos", "数量": "Số lượng", "端子料号": "Mã đầu cos",
  "也是它的编号，如 M509200320；右边「＋」可加适用料号": "Cũng là mã của nó, vd M509200320; bấm「＋」bên phải để thêm mã áp dụng",
  "适用产品料号": "Mã sản phẩm áp dụng",
+ "＋ 适用产品料号": "＋ Mã sản phẩm áp dụng",
+ "不选 = 按 MES": "Không chọn = theo MES",
  "录入": "Nhập liệu",
  "已记录": "Đã ghi",
  "拍照": "Chụp",
@@ -1367,6 +1366,11 @@ function chipsHtml(f, v) {
   return `<div class="clabel">${f.label || f.k}${f.req ? " <b>*</b>" : ""}</div><div class="cchips" id="cc_${f.k}">${list.map(o => `<button type="button" class="cc${o === v ? " on" : ""}" data-cc="${safe(o)}">${safe(o)}</button>`).join("")}<button type="button" class="cc add" data-ccadd="${f.k}">＋ 新类型</button></div><input type="hidden" id="f_${f.k}" value="${safe(v || "")}">`;
 }
 function fieldHtml(f) {
+  if (f.partsBox) {                                                         // 适用产品料号：一个一格（至少一格），「＋」再加一格
+    const rows = partList(kept[type + f.k]);
+    return `<div class="f"><div class="parts" id="partsBox">${(rows.length ? rows : [""]).map(partRow).join("")}</div>
+      <div class="fl"><button type="button" class="scanbtn" data-addpart style="width:100%">＋ 适用产品料号</button></div></div>`;
+  }
   if (f.chips) return `<div class="f">${chipsHtml(f, kept[type + f.k] ?? f.def ?? "")}</div>`;
   if (f.place) return `<div class="f">${placeHtml(f, kept[type + "place"] ?? (room === "mold" ? { lib: MOLD_PLACE } : undefined))}</div>`;
   const v = f.locked ? f.def : codeClean(f.k, kept[type + f.k] ?? f.def ?? "");
@@ -1498,6 +1502,7 @@ function readForm() {
   const out = {};
   for (const f of TYPES[type].fields) {
     if (f.parts) { out[f.k] = readParts().join(" "); continue; }
+    if (f.fixed !== undefined) { out[f.k] = f.fixed; continue; }                 // 固定值：不显示、照发
     if (f.hidden) { out[f.k] = ""; continue; }
     if (f.place) {
       const r = placeValue(placeState());
