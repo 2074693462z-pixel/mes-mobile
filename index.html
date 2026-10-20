@@ -1255,6 +1255,7 @@ const VI = {
  "清空当前填写的内容？": "Xóa nội dung đang nhập?",
  "已清空": "Đã xóa",
  "换镜头": "Đổi camera",
+ "还没扫到，已切换成高清再试": "Chưa quét được, đã chuyển sang độ nét cao để thử lại",
  "检查更新": "Kiểm tra cập nhật",
  "检查中…": "Đang kiểm tra…",
  "点此更新": "Bấm để cập nhật",
@@ -1603,9 +1604,12 @@ function loadZXing() {
 // iPhone 的 Safari 不指定分辨率时只给 640x480，条码在画面里太小认不出来，所以要指定高分辨率。
 // iPhone 还可能拒绝 video.play()（等相机权限弹窗时失去了「点击」这个动作；低电量模式也会），
 // 这时 ZXing 一直等「开始播放」，既没画面也不报错——所以 3 秒还没出画面就提示，点一下屏幕手动开始。
-// 4K：iPhone 对焦最近要 15~20 厘米，条码只能离远点拿，画面里就小；分辨率越高，截出来的那一小块越清楚（系统相机能扫出来就是因为用的是整颗传感器）。
-let camDevices = [], camIdx = -1;
-const camConstraints = () => ({ audio: false, video: { ...(camIdx >= 0 ? { deviceId: { exact: camDevices[camIdx].deviceId } } : { facingMode: { ideal: "environment" } }), width: { ideal: 3840 }, height: { ideal: 2160 } } });
+// 平时 1080p（省电、不发烫）；4 秒还没扫到就自动换成 4K 再试：iPhone 对焦最近要 15~20 厘米，条码只能离远点拿，
+// 画面里就小，分辨率越高，截出来的那一小块越清楚。
+let camDevices = [], camIdx = -1, camHi = false;
+const SCAN_MSG = "把条码或二维码放进框里，自动识别", HI_RES_AFTER = 4000;
+let hiTimer = 0;
+const camConstraints = () => ({ audio: false, video: { ...(camIdx >= 0 ? { deviceId: { exact: camDevices[camIdx].deviceId } } : { facingMode: { ideal: "environment" } }), width: { ideal: camHi ? 3840 : 1920 }, height: { ideal: camHi ? 2160 : 1080 } } });
 const CAM_HINT = "画面没出来？点一下屏幕";
 const IN_APP_BROWSER = /MicroMessenger|Zalo|FBAN|FBAV|Instagram|Line\/|DingTalk/i.test(navigator.userAgent);
 function scanHints() {
@@ -1696,14 +1700,22 @@ async function startScan(id) {
   if (blocked) { toast(blocked); return; }
   try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
   scanTarget = id;
+  camHi = false; $("scanMsg").textContent = SCAN_MSG;
   $("scan").classList.remove("hidden");
   await runCamera();
 }
 async function runCamera() {
   const rd = reader = new window.ZXing.BrowserMultiFormatReader(scanHints(), 250);
+  clearTimeout(hiTimer);
   try {
     await openCamera(rd, "scanVideo", $("scanMsg"), finishScan);
     if (reader !== rd) rd.reset();           // 等相机的时候已经点了取消，别让相机在后台一直开着
+    else if (!camHi) hiTimer = setTimeout(() => {
+      if (reader !== rd) return;
+      camHi = true; $("scanMsg").textContent = "还没扫到，已切换成高清再试";
+      try { rd.reset(); } catch {}
+      runCamera();
+    }, HI_RES_AFTER);
   } catch (e) {
     if (reader === rd) { stopScan(); toast(cameraErrorMsg(e)); }
   }
@@ -1715,6 +1727,7 @@ $("camSwap").onclick = () => {
   runCamera();
 };
 function stopScan() {
+  clearTimeout(hiTimer);
   if (reader) { try { reader.reset(); } catch {} reader = null; }
   $("scan").classList.add("hidden");
 }
