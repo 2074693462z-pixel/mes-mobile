@@ -433,7 +433,7 @@ const TYPES = {
     { k: "治具编号", req: true },
     { k: "资产编号" },
     { k: "位置", place: "shelf", req: true, keep: true },
-    { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], keep: true, hint: "不选 = 按 MES" },   // 选了以手机为准，留空才按 MES
+    { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], def: "在库", keep: true },   // 默认在库，以手机为准（电脑端导入时写进去）；只有留空才按 MES
     { k: "适用产品料号", parts: true, partsBox: true, more: true },    // 一个适用料号一格，点「＋」再加；导出时用空格连起来
     { k: "备注", area: true, more: true },
   ], extraPhotos: ["资产编号照片"] },
@@ -1159,9 +1159,7 @@ const VI = {
  "端子": "Đầu cos", "数量": "Số lượng", "端子料号": "Mã đầu cos",
  "也是它的编号，如 M509200320；右边「＋」可加适用料号": "Cũng là mã của nó, vd M509200320; bấm「＋」bên phải để thêm mã áp dụng",
  "适用产品料号": "Mã sản phẩm áp dụng",
- "＋ 适用产品料号": "＋ Mã sản phẩm áp dụng",
- "不选 = 按 MES": "Không chọn = theo MES",
- "录入": "Nhập liệu",
+ "＋ 适用产品料号": "＋ Mã sản phẩm áp dụng", "录入": "Nhập liệu",
  "已记录": "Đã ghi",
  "拍照": "Chụp",
  "重拍": "Chụp lại",
