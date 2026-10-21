@@ -137,7 +137,7 @@ textarea { min-height:64px; resize:vertical; }
 .withscan { display:flex; gap:8px; }
 .withscan input { flex:1; min-width:0; }
 .scanbtn { flex:none; border:1px solid var(--main); background:none; color:var(--main); border-radius:8px; padding:0 14px; font-size:15px; }
-.scan { position:fixed; inset:0; z-index:30; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#fff; }
+.scan { position:fixed; inset:0; z-index:30; overflow:hidden; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#fff; }
 .scan video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .scan .frame { position:relative; width:92vw; max-width:560px; height:64vw; max-height:380px; border:3px solid #4c8dff; border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
 .scan .frame::before, .scan .frame::after { content:""; position:absolute; left:50%; top:50%; background:#fff; box-shadow:0 0 3px #000; transform:translate(-50%,-50%); }
@@ -1680,7 +1680,11 @@ function useRoiDecode(rd) {
 }
 const camTrack = v => v.srcObject && v.srcObject.getVideoTracks()[0];
 const focusCaps = () => { const t = camTrack($("scanVideo")); return (t && t.getCapabilities && t.getCapabilities()) || {}; };
-const setFocus = c => { const t = camTrack($("scanVideo")); return t ? t.applyConstraints({ advanced: [c] }) : Promise.reject(); };
+// 默认放大倍数：相机支持变焦（多数 Android）就用相机自己的变焦，不支持（iPhone 的 Safari）就把画面放大显示；
+// 识别时蓝框 / 十字标对应的就是放大后看到的那一块。要改倍数只改这个数。
+const SCAN_ZOOM = 3;
+let hwZoom = 0;      // applyConstraints replaces the earlier constraints, so every later call has to carry the zoom again
+const setFocus = c => { const t = camTrack($("scanVideo")); return t ? t.applyConstraints({ advanced: [hwZoom ? { ...c, zoom: hwZoom } : c] }) : Promise.reject(); };
 // 点屏幕 = 重新对焦。Android Chrome 能指定对焦点并锁住镜头；iPhone 的 Safari 完全不开放对焦控制，
 // 只能把相机重启一遍让它重新找焦（重启后的第一次对焦通常最准）。
 let lastRefocus = 0;
@@ -1710,9 +1714,16 @@ async function refocus(x, y) {
 }
 async function afterCamera(v) {
   const t = camTrack(v);
-  // 对焦点放在画面正中心（十字标的位置，扫码框也在正中）；不支持指定对焦点的就退回普通连续对焦
-  if (t) t.applyConstraints({ advanced: [{ focusMode: "continuous", pointsOfInterest: [{ x: 0.5, y: 0.5 }] }] })
-    .catch(() => t.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {}));
+  hwZoom = 0; v.style.transform = "";
+  const z = focusCaps().zoom;
+  if (z) hwZoom = Math.max(z.min, Math.min(SCAN_ZOOM, z.max));
+  // 对焦点放在画面正中心（十字标的位置，扫码框也在正中）；不支持指定对焦点的就退回普通连续对焦，再不行只设变焦
+  if (t) {
+    const zm = hwZoom ? { zoom: hwZoom } : {};
+    const tries = [{ focusMode: "continuous", pointsOfInterest: [{ x: 0.5, y: 0.5 }], ...zm }, { focusMode: "continuous", ...zm }, zm];
+    for (const c of tries) { try { await t.applyConstraints({ advanced: [c] }); break; } catch { if (c === zm) hwZoom = 0; } }
+  }
+  if (SCAN_ZOOM / (hwZoom || 1) > 1.01) v.style.transform = `scale(${SCAN_ZOOM / (hwZoom || 1)})`;
   try {
     if (!camDevices.length) camDevices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput" && !/front|user|前置/i.test(d.label));
     const cur = t && t.getSettings && t.getSettings().deviceId;
