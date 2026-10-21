@@ -420,18 +420,16 @@ const TYPES = {
     { k: "备注", area: true, hint: "选填" },
   ]},
   terminal: { label: "端子", table: "物品", noPhoto: true,     // 端子没有照片和条码：规格（端子料号）就是编号；和物品录进同一张表
-    layout: ["规格", "初始库存", "库位", "状态", "低库存提醒", "备注"],
+    layout: ["规格", "初始库存", "库位", "低库存提醒", "备注"],
     fields: [
     { k: "物品编号", hidden: true },                                  // 保存时自动 = 规格
     { k: "物品名称", hidden: true, fixed: "端子" },                   // 固定值，不显示、照发（电脑端靠名称里的「端子」认出它）
-    { k: "规格", label: "端子料号", req: true, scan: true, plus: true, hint: "也是它的编号，如 M509200320；右边「＋」可加适用料号" },
-    { k: "适用产品料号", parts: true, hidden: true },                    // 不单独占一行：点料号右边的「＋」，一个适用料号一格；导出时用空格连起来
+    { k: "规格", label: "端子料号", req: true, scan: true, hint: "也是它的编号，如 M509200320；适用产品料号电脑端会自己记（出库时）" },
     { k: "类别", hidden: true, fixed: "治具" },                       // 固定值，不显示、照发
     { k: "单位", hidden: true, fixed: "个" },                         // 固定值，不显示、照发
     { k: "低库存提醒", type: "number", hint: "0=不提醒", more: true },
     { k: "库位", place: "shelf", req: true, keep: true },
     { k: "初始库存", label: "数量", type: "number", req: true, hint: "这个库位放了多少，没有写 0" },
-    { k: "状态", opts: ["正常", "损坏", "停用"], def: "正常", keep: true, more: true },
     { k: "备注", area: true, more: true },
   ]},
   fixture: { label: "治具",
@@ -1166,7 +1164,7 @@ const VI = {
  "物品": "Vật tư",
  "加工件": "Chi tiết gia công", "电源": "Nguồn điện", "类型": "Loại", "＋ 新类型": "＋ Loại mới", "不写就用类型": "bỏ trống sẽ dùng loại", "选填": "tùy chọn",
  "端子": "Đầu cos", "数量": "Số lượng", "端子料号": "Mã đầu cos",
- "也是它的编号，如 M509200320；右边「＋」可加适用料号": "Cũng là mã của nó, vd M509200320; bấm「＋」bên phải để thêm mã áp dụng",
+ "也是它的编号，如 M509200320；适用产品料号电脑端会自己记（出库时）": "Cũng là mã của nó, vd M509200320; mã sản phẩm dùng máy tính sẽ tự ghi (khi xuất kho)",
  "适用产品料号": "Mã sản phẩm áp dụng",
  "＋ 适用产品料号": "＋ Mã sản phẩm áp dụng", "录入": "Nhập liệu",
  "已记录": "Đã ghi",
@@ -1284,6 +1282,9 @@ const PATTERNS = [
   [/^已保存（待导出共 (\d+) 条）$/, m => `Đã lưu (chờ xuất tổng ${m[1]} mục)`],
   [/^已保存（待导出共 (\d+) 条）；本机已有 (\d+) 条相同的治具编号，电脑审核时处理$/, m => `Đã lưu (chờ xuất tổng ${m[1]} mục); máy này đã có ${m[2]} đồ gá cùng mã, sẽ xử lý khi duyệt trên máy tính`],
   [/^已保存修改；本机已有 (\d+) 条相同的治具编号，电脑审核时处理$/, m => `Đã lưu chỉnh sửa; máy này đã có ${m[1]} đồ gá cùng mã, sẽ xử lý khi duyệt trên máy tính`],
+  [/^这个端子已经录过了，数量加上了（共 (\d+)）$/, m => `Đầu cos này đã nhập rồi, đã cộng số lượng (tổng ${m[1]})`],
+  [/^这个端子已经放在 (.+)，数量加到那里了（共 (\d+)），请放到一起$/, m => `Đầu cos này đã để ở ${m[1]}, số lượng đã cộng vào đó (tổng ${m[2]}), hãy để chung một chỗ`],
+  [/^已保存（待导出共 (\d+) 条）；这个端子已经放在 (.+)，请放到一起$/, m => `Đã lưu (chờ xuất tổng ${m[1]} mục); đầu cos này đã để ở ${m[2]}, hãy để chung một chỗ`],
   [/^请填写「(.+)」$/, m => `Vui lòng nhập 「${tr(m[1])}」`],
   [/^同型号里「(.+)」(.+) 已经录过了$/, m => `Trong cùng model, 「${tr(m[1])}」${m[2]} đã được nhập rồi`],
   [/^「(.+)」(.+) 已经录过了$/, m => `「${tr(m[1])}」${m[2]} đã được nhập rồi`],
@@ -1394,9 +1395,9 @@ function fieldHtml(f) {
   else input = `<input id="${id}" value="${safe(v)}"${f.locked ? " readonly" : ""}${f.type === "number" ? ' type="number" inputmode="numeric" min="0"' : f.type === "date" ? ' type="text" data-date="1"' : ""}${f.ph ? ` placeholder="${safe(f.ph)}"` : ""}${UNIQUE.includes(f.k) || f.scan ? ' data-code="1" autocapitalize="characters" autocorrect="off" spellcheck="false"' : ""} autocomplete="off">`;
   // 名称直接写在格子里（没填时是大字，填了以后缩成小字留在格子左上角）
   const label = `<label for="${id}">${f.label || f.k}${f.req ? " <b>*</b>" : ""}${f.hint ? `<span class="tip">${f.hint}</span>` : ""}</label>`;
-  const scan = (UNIQUE.includes(f.k) || f.scan ? `<button type="button" class="scanbtn" data-scan="${id}">扫码</button>` : "") + (f.plus ? `<button type="button" class="scanbtn" data-addpart>＋</button>` : "");
-  const half = f.opts || f.type === "number" || f.type === "date" || (HALF.includes(f.k) && !f.plus);
-  return `<div class="f${half ? " half" : ""}"${f.when ? ` data-wk="${f.when.k}" data-wv="${f.when.v}"` : ""}><div class="fl${f.area ? " area" : ""}"><div class="box">${input}${label}</div>${scan}</div>${f.plus ? `<div class="parts" id="partsBox">${partList(kept[type + "适用产品料号"]).map(partRow).join("")}</div>` : ""}</div>`;
+  const scan = UNIQUE.includes(f.k) || f.scan ? `<button type="button" class="scanbtn" data-scan="${id}">扫码</button>` : "";
+  const half = f.opts || f.type === "number" || f.type === "date" || HALF.includes(f.k);
+  return `<div class="f${half ? " half" : ""}"${f.when ? ` data-wk="${f.when.k}" data-wv="${f.when.v}"` : ""}><div class="fl${f.area ? " area" : ""}"><div class="box">${input}${label}</div>${scan}</div></div>`;
 }
 // 端子的适用料号：一个一格，只许英文字母、数字和「-」，保存成空格连起来的一串
 let partSeq = 0;
@@ -1582,13 +1583,17 @@ async function save() {
   if (type === "fixture" && !data["治具编号"] && !confirm(T("没有扫治具条码，是不是忘记扫码了？点「取消」回去扫码；点「确定」表示这个治具确实没有条码，直接保存。"))) {
     $("f_治具编号").focus(); startScan("f_治具编号"); return;
   }
-  // 每一行就是一台（一件），编号不能重复；治具例外（有的治具贴了同一个码）：照录，电脑端审核时一个码只让通过一行
+  // 每一行就是一台（一件），编号不能重复；治具例外（有的治具贴了同一个码）：照录，电脑端审核时一个码只让通过一行。
+  // 端子也不报错，也不存两条：本机还没导出的同一个端子，数量直接加到那一条上，库位以那一条为准，提醒把它放到一起
   const old = await allRecs();
   for (const k of ["设备编号", "物品编号"]) {
-    if (data[k] && old.some(r => r.id !== editingId && r.type === type && r.data[k] === data[k])) {
-      toast(`「${def.noPhoto ? "端子料号" : k}」${data[k]} 已经录过了`); const el = $("f_" + k); if (el) el.focus(); return;
+    if (!def.noPhoto && data[k] && old.some(r => r.id !== editingId && r.type === type && r.data[k] === data[k])) {
+      toast(`「${k}」${data[k]} 已经录过了`); const el = $("f_" + k); if (el) el.focus(); return;
     }
   }
+  const sameTerminals = def.noPhoto ? old.filter(r => r.id !== editingId && r.type === type && r.data["物品编号"] === data["物品编号"]) : [];
+  const twin = !editingId && sameTerminals.find(r => !r.exported);
+  const otherPlaces = [...new Set(sameTerminals.filter(r => r !== twin).map(r => r.data["库位"]).filter(p => p && p !== data["库位"]))];   // already exported ones: can only remind
   const sameCode = type === "fixture" && data["治具编号"]
     ? old.filter(r => r.id !== editingId && r.type === "fixture" && r.data["治具编号"] === data["治具编号"]).length : 0;
   if (editingId) {                                    // 修改已有记录：原地更新，重新标为待导出
@@ -1601,7 +1606,8 @@ async function save() {
     return;
   }
   const place = def.fields.find(f => f.place), placeSnapshot = place ? placeState() : null;
-  try { await putRec({ type, data, photo, extra, created: Date.now(), exported: false }); }
+  const total = twin ? (parseInt(twin.data["初始库存"], 10) || 0) + (parseInt(data["初始库存"], 10) || 0) : 0;
+  try { await putRec(twin ? { ...twin, data: { ...twin.data, "初始库存": String(total) }, exported: false } : { type, data, photo, extra, created: Date.now(), exported: false }); }
   catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
   extra = {};
   const mode = def.cardLike ? "common" : $("keepMode").value;
@@ -1614,7 +1620,9 @@ async function save() {
   setPhoto(null); renderForm(); refreshCount(); refreshModelPhotos();
   $("main").scrollTo({ top: 0, behavior: "smooth" });
   const n = old.filter(r => !r.exported).length + 1;
-  toast(sameCode ? `已保存（待导出共 ${n} 条）；本机已有 ${sameCode} 条相同的治具编号，电脑审核时处理` : `已保存（待导出共 ${n} 条）`);
+  toast(twin ? (twin.data["库位"] === data["库位"] ? `这个端子已经录过了，数量加上了（共 ${total}）` : `这个端子已经放在 ${twin.data["库位"]}，数量加到那里了（共 ${total}），请放到一起`)
+    : otherPlaces.length ? `已保存（待导出共 ${n} 条）；这个端子已经放在 ${otherPlaces.join("、")}，请放到一起`
+    : sameCode ? `已保存（待导出共 ${n} 条）；本机已有 ${sameCode} 条相同的治具编号，电脑审核时处理` : `已保存（待导出共 ${n} 条）`);
   if (def.cardLike) setTimeout(() => { try { $("cam").click(); } catch {} }, 350);     // 物品：直接打开相机拍下一张（浏览器不允许时就算了，点「拍照」）
 }
 
@@ -1893,7 +1901,7 @@ async function renderList() {
     const code = r.data[def.fields[0].k], serial = r.data["出厂编号"];
     const line2 = def.cardLike ? r.data["库位"] : (nameKeyOf(def) ? [code || "自动编号", serial ? "SN " + serial : ""] : [r.data["资产编号"], r.data["厂商"]]).filter(Boolean).join(" · ");
     const place = r.data["库位"] || r.data["位置"];
-    const line3 = def.cardLike ? r.data["备注"] : def.noPhoto ? [r.data["适用产品料号"], place].filter(Boolean).join(" · ")
+    const line3 = def.cardLike ? r.data["备注"] : def.noPhoto ? [r.data["初始库存"] ? "× " + r.data["初始库存"] : "", place].filter(Boolean).join(" · ")
       : [r.type === "fixture" ? "" : r.data["型号"] || r.data["规格"], T(r.data["类别"] || ""), place].filter(Boolean).join(" · ");
     const pic = recPhoto(r, recs);        // 同型号共用照片：没拍的用同型号那张，淡色显示
     let img = `<div class="ph"></div>`;
