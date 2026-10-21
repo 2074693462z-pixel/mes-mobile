@@ -140,7 +140,14 @@ textarea { min-height:64px; resize:vertical; }
 .scan { position:fixed; inset:0; z-index:30; background:#000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#fff; }
 .scan video { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
 .scan .frame { position:relative; width:92vw; max-width:560px; height:64vw; max-height:380px; border:3px solid #4c8dff; border-radius:12px; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
+.scan .frame::before, .scan .frame::after { content:""; position:absolute; left:50%; top:50%; background:#fff; box-shadow:0 0 3px #000; transform:translate(-50%,-50%); }
+.scan .frame::before { width:34px; height:2px; }
+.scan .frame::after { width:2px; height:34px; }
 .scan p, .scan .btn { position:relative; margin:0; }
+#focusRow { position:relative; display:flex; align-items:center; gap:10px; width:76vw; max-width:380px; font-size:14px; }
+#focusRow input { flex:1; min-width:0; }
+#focusRing { position:fixed; width:70px; height:70px; margin:-35px 0 0 -35px; border:2px solid #ffd54a; border-radius:50%; pointer-events:none; animation:ringIn .9s ease-out forwards; }
+@keyframes ringIn { from { transform:scale(1.5); opacity:1; } to { transform:scale(.9); opacity:0; } }
 .scan .btn { background:#fff; color:#111; }
 #camSwap { position:relative; background:rgba(0,0,0,.45); color:#fff; border:1px solid rgba(255,255,255,.7); border-radius:16px; padding:6px 14px; font-size:15px; }
 .mask { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
@@ -325,6 +332,8 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
   <video id="scanVideo" playsinline muted></video>
   <div class="frame"></div>
   <p id="scanMsg">把条码或二维码放进框里，自动识别</p>
+  <label id="focusRow" class="hidden">近<input type="range" id="focusDist" min="0" max="1" step="0.01" value="0.3" aria-label="手动对焦">远</label>
+  <div id="focusRing" class="hidden"></div>
   <button type="button" id="camSwap" class="hidden">换镜头</button>
   <button class="btn" id="scanCancel" type="button">取消</button>
 </div>
@@ -1673,9 +1682,47 @@ function useRoiDecode(rd) {
   };
 }
 const camTrack = v => v.srcObject && v.srcObject.getVideoTracks()[0];
+const focusCaps = () => { const t = camTrack($("scanVideo")); return (t && t.getCapabilities && t.getCapabilities()) || {}; };
+const setFocus = c => { const t = camTrack($("scanVideo")); return t ? t.applyConstraints({ advanced: [c] }) : Promise.reject(); };
+// 点屏幕 = 重新对焦。Android Chrome 能指定对焦点并锁住镜头；iPhone 的 Safari 完全不开放对焦控制，
+// 只能把相机重启一遍让它重新找焦（重启后的第一次对焦通常最准）。
+let lastRefocus = 0;
+function showRing(x, y) {
+  const r = $("focusRing"); r.classList.add("hidden"); void r.offsetWidth;     // restart the CSS animation
+  r.style.left = x + "px"; r.style.top = y + "px"; r.classList.remove("hidden");
+}
+async function refocus(x, y) {
+  if (!reader || Date.now() - lastRefocus < 1200) return;
+  lastRefocus = Date.now();
+  showRing(x, y);
+  const modes = focusCaps().focusMode || [];
+  if (modes.includes("single-shot") || modes.includes("manual")) {
+    const v = $("scanVideo"), vr = v.getBoundingClientRect(), s = Math.max(vr.width / v.videoWidth, vr.height / v.videoHeight);
+    const nx = (x - vr.left - (vr.width - v.videoWidth * s) / 2) / s / v.videoWidth, ny = (y - vr.top - (vr.height - v.videoHeight * s) / 2) / s / v.videoHeight;
+    const poi = { x: Math.min(1, Math.max(0, nx)), y: Math.min(1, Math.max(0, ny)) };
+    $("focusDist").value = 0.3;
+    const mode = modes.includes("single-shot") ? "single-shot" : "continuous";
+    try { await setFocus({ focusMode: mode, pointsOfInterest: [poi] }); }
+    catch { try { await setFocus({ focusMode: mode }); } catch {} }
+    $("scanMsg").textContent = "已重新对焦；距离变了请再点一下屏幕";
+    return;
+  }
+  $("scanMsg").textContent = "正在重新对焦…";
+  try { reader.reset(); } catch {}
+  await runCamera();
+  $("scanMsg").textContent = "已重新对焦；还是糊就前后挪一挪再点屏幕";
+}
+// 手动对焦滑块（只有相机开放了 focusDistance 才显示，多数 Android 有，iPhone 没有）；位置按平方映射，近处调得更细
+$("focusDist").oninput = e => {
+  const d = focusCaps().focusDistance; if (!d) return;
+  setFocus({ focusMode: "manual", focusDistance: d.min + (d.max - d.min) * e.target.value ** 2 }).catch(() => {});
+  $("scanMsg").textContent = "手动对焦中：滑到条码最清楚为止";
+};
 async function afterCamera(v) {
   const t = camTrack(v);
   if (t) t.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+  $("focusRow").classList.toggle("hidden", !(focusCaps().focusDistance));
+  $("focusDist").value = 0.3;
   try {
     if (!camDevices.length) camDevices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput" && !/front|user|前置/i.test(d.label));
     const cur = t && t.getSettings && t.getSettings().deviceId;
@@ -1695,7 +1742,10 @@ async function openCamera(rd, videoId, msgEl, onText) {
     if (msgEl.textContent === CAM_HINT) msgEl.textContent = orig;
   }
 }
-$("scan").addEventListener("click", () => { $("scanVideo").play().catch(() => {}); });   // 点一下屏幕 = 一次真正的用户操作，iPhone 肯放行
+$("scan").addEventListener("click", e => {
+  $("scanVideo").play().catch(() => {});      // 点一下屏幕 = 一次真正的用户操作，iPhone 肯放行
+  if (!e.target.closest("button, label")) refocus(e.clientX, e.clientY);
+});
 
 let reader = null, scanTarget = "";
 async function startScan(id) {
