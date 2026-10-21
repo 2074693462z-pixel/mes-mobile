@@ -2197,6 +2197,9 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catc
 
 // 检查更新：拿线上 sw.js 里的版本号，和手机里正在用的缓存版本比；不一样就让新版下载好，再由用户点一下才刷新（不会打断正在填的内容）
 const cacheVer = async () => (await caches.keys()).filter(k => k.startsWith("collector-")).sort().pop() || "";
+// The service worker can swap the cache in the background while this page (loaded from the old cache) is still on screen,
+// so "latest" must be judged against the version this page was loaded with, not the current cache.
+const runningVer = cacheVer();
 $("updBtn").onclick = async () => {
   const b = $("updBtn");
   if (b.classList.contains("new")) { location.reload(); return; }
@@ -2204,11 +2207,13 @@ $("updBtn").onclick = async () => {
   try {
     const live = ((await (await fetch("sw.js?t=" + Date.now(), { cache: "no-store" })).text()).match(/CACHE = "([^"]+)"/) || [])[1];
     if (!live) throw new Error("no version");
-    if (live === await cacheVer()) { toast((lang === "vi" ? "Đã là bản mới nhất (" : "已是最新版（") + live.replace("collector-", "") + (lang === "vi" ? ")" : "）")); b.textContent = "检查更新"; }
+    if (live === await runningVer) { toast((lang === "vi" ? "Đã là bản mới nhất (" : "已是最新版（") + live.replace("collector-", "") + (lang === "vi" ? ")" : "）")); b.textContent = "检查更新"; }
     else {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) await reg.update();
-      for (let i = 0; i < 20 && live !== await cacheVer(); i++) await new Promise(r => setTimeout(r, 500));
+      if (live !== await cacheVer()) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.update();
+        for (let i = 0; i < 20 && live !== await cacheVer(); i++) await new Promise(r => setTimeout(r, 500));
+      }
       if (live === await cacheVer()) { toast("发现新版，点按钮更新（已录的记录不会丢）"); b.textContent = "点此更新"; b.classList.add("new"); }
       else { toast("检查失败，请确认已联网"); b.textContent = "检查更新"; }
     }
