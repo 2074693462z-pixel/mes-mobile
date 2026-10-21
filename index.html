@@ -438,7 +438,8 @@ const TYPES = {
     layout: ["治具编号", "资产编号", "位置", "状态", "适用产品料号", "备注"],
     fields: [
     // 治具只留常用的几项在前面，其余收进「更多信息」；不填名称和类别：电脑端按编号去 MES 治具清单里对
-    { k: "治具编号", req: true },
+    // 编号可以不填（没贴码的治具）：保存时问一句是不是忘了扫；重复的编号也能录，电脑端审核时一个码只让通过一行
+    { k: "治具编号" },
     { k: "资产编号" },
     { k: "位置", place: "shelf", req: true, keep: true },
     { k: "状态", opts: ["在库", "已出库", "维修中", "损坏", "停用", "报废"], def: "在库", keep: true },   // 默认在库，以手机为准（电脑端导入时写进去）；只有留空才按 MES
@@ -1271,6 +1272,8 @@ const VI = {
  "检查失败，请确认已联网": "Kiểm tra thất bại, hãy kiểm tra mạng",
  "微信里不能下载，请点右上角「···」→「在浏览器打开」后再导出": "Trong WeChat không tải được, hãy bấm 「···」 góc phải → 「Mở bằng trình duyệt」 rồi xuất",
  "你在微信内置浏览器里，它不支持下载和分享。请点右上角「···」→「在浏览器打开」（iPhone 选 Safari，安卓选 Chrome 等），在那里导出。": "Bạn đang dùng trình duyệt trong WeChat, không hỗ trợ tải và chia sẻ. Hãy bấm 「···」 góc phải → 「Mở bằng trình duyệt」 (iPhone chọn Safari, Android chọn Chrome…) rồi xuất ở đó.",
+ "没有扫治具条码，是不是忘记扫码了？点「取消」回去扫码；点「确定」表示这个治具确实没有条码，直接保存。": "Chưa quét mã vạch đồ gá, có phải quên quét không? Bấm 「Hủy」 để quay lại quét; bấm 「OK」 nếu đồ gá này thật sự không có mã, lưu luôn.",
+ "无条码": "Chưa có mã",
  "全选": "Chọn tất cả",
  "取消全选": "Bỏ chọn tất cả",
  "不选则只导出「待导出」的；勾选后可重复导出已导出的": "Không chọn thì chỉ xuất mục 「Chờ xuất」; chọn để xuất lại cả mục đã xuất",
@@ -1279,6 +1282,8 @@ const VI = {
 const tr = s => VI[s] || s;
 const PATTERNS = [
   [/^已保存（待导出共 (\d+) 条）$/, m => `Đã lưu (chờ xuất tổng ${m[1]} mục)`],
+  [/^已保存（待导出共 (\d+) 条）；本机已有 (\d+) 条相同的治具编号，电脑审核时处理$/, m => `Đã lưu (chờ xuất tổng ${m[1]} mục); máy này đã có ${m[2]} đồ gá cùng mã, sẽ xử lý khi duyệt trên máy tính`],
+  [/^已保存修改；本机已有 (\d+) 条相同的治具编号，电脑审核时处理$/, m => `Đã lưu chỉnh sửa; máy này đã có ${m[1]} đồ gá cùng mã, sẽ xử lý khi duyệt trên máy tính`],
   [/^请填写「(.+)」$/, m => `Vui lòng nhập 「${tr(m[1])}」`],
   [/^同型号里「(.+)」(.+) 已经录过了$/, m => `Trong cùng model, 「${tr(m[1])}」${m[2]} đã được nhập rồi`],
   [/^「(.+)」(.+) 已经录过了$/, m => `「${tr(m[1])}」${m[2]} đã được nhập rồi`],
@@ -1574,20 +1579,25 @@ async function save() {
   if (type === "fixture" && data["资产编号"] && !extra["资产编号照片"]) { toast("填了资产编号，请拍资产编号照片"); $("xbtn_资产编号照片").focus(); return; }
   if (!photo && photoNeeded()) { toast(type === "item" || def.cardLike ? "请先拍一张照片" : "这个型号还没有照片，请拍一张（同型号只需拍一张）"); $("shoot").focus(); return; }
   if ((type === "item" || type === "terminal") && !/^\d+$/.test(String(data["初始库存"]).trim())) { toast("初始库存必须是 0 或正整数"); $("f_初始库存").focus(); return; }
-  // 每一行就是一台（一件），编号不能重复
+  if (type === "fixture" && !data["治具编号"] && !confirm(T("没有扫治具条码，是不是忘记扫码了？点「取消」回去扫码；点「确定」表示这个治具确实没有条码，直接保存。"))) {
+    $("f_治具编号").focus(); startScan("f_治具编号"); return;
+  }
+  // 每一行就是一台（一件），编号不能重复；治具例外（有的治具贴了同一个码）：照录，电脑端审核时一个码只让通过一行
   const old = await allRecs();
-  for (const k of ["设备编号", "治具编号", "物品编号"]) {
+  for (const k of ["设备编号", "物品编号"]) {
     if (data[k] && old.some(r => r.id !== editingId && r.type === type && r.data[k] === data[k])) {
       toast(`「${def.noPhoto ? "端子料号" : k}」${data[k]} 已经录过了`); const el = $("f_" + k); if (el) el.focus(); return;
     }
   }
+  const sameCode = type === "fixture" && data["治具编号"]
+    ? old.filter(r => r.id !== editingId && r.type === "fixture" && r.data["治具编号"] === data["治具编号"]).length : 0;
   if (editingId) {                                    // 修改已有记录：原地更新，重新标为待导出
     const prev = old.find(r => r.id === editingId);
     try { await putRec({ ...prev, data, photo, extra, exported: false }); }
     catch (e) { toast("保存失败，请重试：" + (e && e.message ? e.message : e)); return; }
     leaveEdit(); refreshCount(); refreshModelPhotos();
     document.querySelector('#tabs [data-tab="list"]').click();
-    toast("已保存修改");
+    toast(sameCode ? `已保存修改；本机已有 ${sameCode} 条相同的治具编号，电脑审核时处理` : "已保存修改");
     return;
   }
   const place = def.fields.find(f => f.place), placeSnapshot = place ? placeState() : null;
@@ -1604,7 +1614,7 @@ async function save() {
   setPhoto(null); renderForm(); refreshCount(); refreshModelPhotos();
   $("main").scrollTo({ top: 0, behavior: "smooth" });
   const n = old.filter(r => !r.exported).length + 1;
-  toast(`已保存（待导出共 ${n} 条）`);
+  toast(sameCode ? `已保存（待导出共 ${n} 条）；本机已有 ${sameCode} 条相同的治具编号，电脑审核时处理` : `已保存（待导出共 ${n} 条）`);
   if (def.cardLike) setTimeout(() => { try { $("cam").click(); } catch {} }, 350);     // 物品：直接打开相机拍下一张（浏览器不允许时就算了，点「拍照」）
 }
 
@@ -1890,7 +1900,7 @@ async function renderList() {
     if (pic.blob) { const u = URL.createObjectURL(pic.blob); urls.push(u); img = `<img src="${u}" class="${pic.shared ? "shared" : ""}" alt="">`; }
     const d = new Date(r.created), p2 = n => String(n).padStart(2, "0");
     const when = `${d.getMonth() + 1}/${d.getDate()}<br>${p2(d.getHours())}:${p2(d.getMinutes())}`;
-    return `<div class="item" data-open="${r.id}"><span class="ck" data-sel="${r.id}"><input type="checkbox"${sel.has(r.id) ? " checked" : ""}></span>${img}<div class="t"><div class="n"><span class="tag">${def.label}</span>${r.exported ? '<span class="tag done">已导出</span>' : ""}<span data-raw>${safe(name)}</span></div><div class="s code" data-raw>${safe(line2)}</div><div class="s" data-raw>${safe(line3)}</div></div><div class="when">${when}</div></div>`;
+    return `<div class="item" data-open="${r.id}"><span class="ck" data-sel="${r.id}"><input type="checkbox"${sel.has(r.id) ? " checked" : ""}></span>${img}<div class="t"><div class="n"><span class="tag">${def.label}</span>${r.exported ? '<span class="tag done">已导出</span>' : ""}<span data-raw>${safe(name || (r.type === "fixture" ? T("无条码") : ""))}</span></div><div class="s code" data-raw>${safe(line2)}</div><div class="s" data-raw>${safe(line3)}</div></div><div class="when">${when}</div></div>`;
   }).join("") : `<div class="empty">还没有记录</div>`;
 }
 // 这条记录的照片：自己有就用自己的，没有就用同型号（同类）里有照片的那条
