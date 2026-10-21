@@ -147,7 +147,7 @@ textarea { min-height:64px; resize:vertical; }
 #focusRing { position:fixed; width:70px; height:70px; margin:-35px 0 0 -35px; border:2px solid #ffd54a; border-radius:50%; pointer-events:none; animation:ringIn .9s ease-out forwards; }
 @keyframes ringIn { from { transform:scale(1.5); opacity:1; } to { transform:scale(.9); opacity:0; } }
 .scan .btn { background:#fff; color:#111; }
-#camSwap { position:relative; background:rgba(0,0,0,.45); color:#fff; border:1px solid rgba(255,255,255,.7); border-radius:16px; padding:6px 14px; font-size:15px; }
+#camSwap, #scanPhoto { position:relative; background:rgba(0,0,0,.45); color:#fff; border:1px solid rgba(255,255,255,.7); border-radius:16px; padding:6px 14px; font-size:15px; }
 .mask { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:20; display:flex; align-items:flex-end; justify-content:center; }
 .sheet { background:var(--card); width:100%; max-width:640px; border-radius:16px 16px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom)); }
 .sheet h2 { margin:0 0 4px; font-size:17px; }
@@ -332,6 +332,8 @@ main#main { flex:1; min-height:0; width:100%; max-width:640px; margin:0 auto; ov
   <p id="scanMsg">把条码或二维码放进框里，自动识别</p>
   <div id="focusRing" class="hidden"></div>
   <button type="button" id="camSwap" class="hidden">换镜头</button>
+  <button type="button" id="scanPhoto">拍照识别（更清楚）</button>
+  <input type="file" id="scanFile" accept="image/*" capture="environment" class="hidden">
   <button class="btn" id="scanCancel" type="button">取消</button>
 </div>
 <div class="mask hidden" id="detail">
@@ -1258,6 +1260,8 @@ const VI = {
  "清空当前填写的内容？": "Xóa nội dung đang nhập?",
  "已清空": "Đã xóa",
  "换镜头": "Đổi camera",
+ "拍照识别（更清楚）": "Chụp ảnh để nhận diện (rõ hơn)",
+ "照片里没认出条码，请靠近些、让条码占满画面再拍": "Không nhận ra mã trong ảnh, hãy lại gần hơn để mã chiếm đầy khung rồi chụp lại",
  "还没扫到，已切换成高清再试": "Chưa quét được, đã chuyển sang độ nét cao để thử lại",
  "检查更新": "Kiểm tra cập nhật",
  "检查中…": "Đang kiểm tra…",
@@ -1779,6 +1783,42 @@ $("camSwap").onclick = () => {
   camIdx = (camIdx + 1) % camDevices.length;
   try { reader.reset(); } catch {}
   runCamera();
+};
+// 「拍照识别」：实时画面（网页相机）对焦比系统自带的相机差很多，所以改用系统相机拍一张清楚的照片，再从照片里认条码。
+// 照片分辨率高，条码小也认得出；和实时识别一样，换几种截取范围（整张、中间一块、中间条带）× 正常 / 反色轮着试。
+const PHOTO_ROIS = [[0, 0, 1, 1], [0.15, 0.15, 0.7, 0.7], [0, 0.3, 1, 0.4], [0.25, 0.25, 0.5, 0.5], [0.3, 0.4, 0.4, 0.2]];
+async function decodePhoto(file) {
+  const Z = window.ZXing, rd = new Z.BrowserMultiFormatReader(scanHints()), url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url; await img.decode();
+    const cv = document.createElement("canvas"), g = cv.getContext("2d", { willReadFrequently: true });
+    for (const [fx, fy, fw, fh] of PHOTO_ROIS) {
+      const sx = Math.round(img.naturalWidth * fx), sy = Math.round(img.naturalHeight * fy);
+      const sw = Math.round(img.naturalWidth * fw), sh = Math.round(img.naturalHeight * fh);
+      const k = Math.min(1, 2000 / Math.max(sw, sh));
+      cv.width = Math.round(sw * k); cv.height = Math.round(sh * k);
+      g.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+      for (const invert of [false, true]) {
+        let src = new Z.HTMLCanvasElementLuminanceSource(cv);
+        if (invert) src = src.invert();
+        try { return rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src))).getText(); } catch {}
+        await new Promise(r => setTimeout(r));      // let the page breathe between attempts
+      }
+    }
+  } finally { URL.revokeObjectURL(url); }
+  return "";
+}
+$("scanPhoto").onclick = () => { $("scanFile").value = ""; $("scanFile").click(); };
+$("scanFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  $("scanMsg").textContent = "正在识别照片…";
+  let text = "";
+  try { text = await decodePhoto(f); } catch {}
+  if (text) finishScan(text);
+  else {
+    $("scanMsg").textContent = SCAN_MSG; toast("照片里没认出条码，请靠近些、让条码占满画面再拍");
+    if (reader) { try { reader.reset(); } catch {} runCamera(); }      // the live view stops while the system camera is open
+  }
 };
 function stopScan() {
   clearTimeout(hiTimer);
