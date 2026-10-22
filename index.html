@@ -489,7 +489,8 @@ const opt = (v, label, cur) => `<option value="${v}"${String(v) === String(cur) 
 // 树是空的（还没导出过）就退回上面的「栋/层/区/排/格」手填。每一级最后一项是「＋新增」，加的位置存在本机，
 // 记录里照常写成短写法（如 V1-1F-B-2-02）；电脑端导入后，不在库里的会进「位置对照」处理。
 let TREE = null;
-const unpad = p => String(p || "").replace(/(?<=-)0+(\d)/g, "$1");
+// No regex lookbehind here: Safari before 16.4 treats it as a SyntaxError and the whole script (every button) dies
+const unpad = p => String(p || "").replace(/-0+(\d)/g, "-$1");
 const loadExtra = () => { try { return JSON.parse(localStorage.getItem("libExtra") || "[]"); } catch { return []; } };
 function buildTree() {
   const nodes = (window.LOCATIONS || []).map(r => ({ code: r[0], path: r[1], name: r[2], parent_code: r[3], depth: r[4], name_vi: r[5] || "" }));
