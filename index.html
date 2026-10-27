@@ -2201,7 +2201,15 @@ document.addEventListener("click", e => {
   if (img) { $("lbImg").src = img.src; $("lb").classList.remove("hidden"); }
 });
 $("lb").onclick = () => { $("lb").classList.add("hidden"); $("lbImg").removeAttribute("src"); };
-$("save").onclick = () => save().catch(e => toast("保存失败：" + (e && e.message ? e.message : e)));
+// One tap = one record: on a slow phone people tap again and every tap saved the form once more (the late copies even lost the photo, which setPhoto(null) had cleared).
+let saving = false;
+$("save").onclick = async () => {
+  if (saving) return;
+  saving = true;
+  try { await save(); }
+  catch (e) { toast("保存失败：" + (e && e.message ? e.message : e)); }
+  finally { saving = false; }
+};
 $("export").onclick = () => doItemExport().catch(() => toast("导出失败"));
 // 清空当前填写的内容（信息、照片、沿用下来的内容全部清掉）
 $("clearForm").onclick = () => {
