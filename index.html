@@ -1755,11 +1755,11 @@ async function afterCamera(v) {
   $("camSwap").classList.toggle("hidden", camDevices.length < 2);
 }
 // 让 rd 开始用相机扫；画面出来（resolve）之前如果太久，就在 msgEl 里提示点屏幕
-async function openCamera(rd, videoId, msgEl, onText) {
+async function openCamera(rd, videoId, msgEl, onResult) {
   useRoiDecode(rd);
   const orig = msgEl.textContent, timer = setTimeout(() => { msgEl.textContent = CAM_HINT; }, 3000);
   try {
-    await rd.decodeFromConstraints(camConstraints(), videoId, result => { if (result) onText(result.getText()); });
+    await rd.decodeFromConstraints(camConstraints(), videoId, result => { if (result) onResult(result); });
     await afterCamera($(videoId));
   } finally {
     clearTimeout(timer);
@@ -1771,12 +1771,35 @@ $("scan").addEventListener("click", e => {
   if (!e.target.closest("button, label")) refocus(e.clientX, e.clientY);
 });
 
+// 防误读：每一帧是从画面里截一小块来认的，条码被截断时 ITF / Code39 这类没有校验位的格式会读出「008」这种假结果。
+// 所以同一个结果要在不同的截图里读到多次才算数：有校验位的（Code128 / QR / EAN…）2 次，没有校验位的（ITF / Code39）3 次；
+// 读到不一样的结果就不会接受，继续扫，直到某一个结果明显占多数。
+const WEAK_FORMATS = new Set(["ITF", "CODE_39"]), VOTE_WINDOW = 5000;
+let votes = [];
+const votesNeeded = fmt => WEAK_FORMATS.has(fmt) ? 3 : 2;
+// Returns the winning text once it has enough votes (and nothing else is tied with it), else "" and a progress hint.
+function castVote(text, fmt, now = Date.now()) {
+  votes = votes.filter(v => now - v.t < VOTE_WINDOW); votes.push({ text, fmt, t: now });
+  const n = votes.filter(v => v.text === text).length, need = votesNeeded(fmt);
+  const rival = votes.some(v => v.text !== text && votes.filter(u => u.text === v.text).length >= n);
+  if (n >= need && !rival) return text;
+  return "";
+}
+function onLiveResult(result) {
+  if (!result) return;
+  const text = String(result.getText() || "").trim(); if (!text) return;
+  const fmt = window.ZXing.BarcodeFormat[result.getBarcodeFormat()];
+  const ok = castVote(text, fmt);
+  if (ok) finishScan(ok);
+  else $("scanMsg").textContent = "正在确认，请保持不动…";
+}
+
 let reader = null, scanTarget = "";
 async function startScan(id) {
   const blocked = cameraBlocked("需要用 https 网址打开才能扫码");
   if (blocked) { toast(blocked); return; }
   try { await loadZXing(); } catch { toast("扫码组件没加载出来，请联网打开一次页面"); return; }
-  scanTarget = id;
+  scanTarget = id; votes = [];
   camHi = false; $("scanMsg").textContent = SCAN_MSG;
   $("scan").classList.remove("hidden");
   await runCamera();
@@ -1785,7 +1808,7 @@ async function runCamera() {
   const rd = reader = new window.ZXing.BrowserMultiFormatReader(scanHints(), 250);
   clearTimeout(hiTimer);
   try {
-    await openCamera(rd, "scanVideo", $("scanMsg"), finishScan);
+    await openCamera(rd, "scanVideo", $("scanMsg"), onLiveResult);
     if (reader !== rd) rd.reset();           // 等相机的时候已经点了取消，别让相机在后台一直开着
     else if (!camHi) hiTimer = setTimeout(() => {
       if (reader !== rd) return;
@@ -1811,6 +1834,9 @@ async function decodePhoto(file) {
   try {
     const img = new Image(); img.src = url; await img.decode();
     const cv = document.createElement("canvas"), g = cv.getContext("2d", { willReadFrequently: true });
+    // Same rule as live scanning: one result must be read from several different crops before it counts.
+    // If every crop is tried and only one checksummed read came out, that one is still accepted (photo is a single shot).
+    const reads = [];
     for (const [fx, fy, fw, fh] of PHOTO_ROIS) {
       const sx = Math.round(img.naturalWidth * fx), sy = Math.round(img.naturalHeight * fy);
       const sw = Math.round(img.naturalWidth * fw), sh = Math.round(img.naturalHeight * fh);
@@ -1820,10 +1846,20 @@ async function decodePhoto(file) {
       for (const invert of [false, true]) {
         let src = new Z.HTMLCanvasElementLuminanceSource(cv);
         if (invert) src = src.invert();
-        try { return rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src))).getText(); } catch {}
+        try {
+          const r = rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src)));
+          const text = String(r.getText() || "").trim(), fmt = Z.BarcodeFormat[r.getBarcodeFormat()];
+          if (text) {
+            reads.push({ text, fmt });
+            const n = reads.filter(v => v.text === text).length;
+            if (n >= votesNeeded(fmt) && !reads.some(v => v.text !== text && reads.filter(u => u.text === v.text).length >= n)) return text;
+          }
+        } catch {}
         await new Promise(r => setTimeout(r));      // let the page breathe between attempts
       }
     }
+    const texts = [...new Set(reads.map(v => v.text))];
+    if (texts.length === 1 && !WEAK_FORMATS.has(reads[0].fmt)) return texts[0];
   } finally { URL.revokeObjectURL(url); }
   return "";
 }
