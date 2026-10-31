@@ -1627,15 +1627,24 @@ async function save() {
   if (def.cardLike) setTimeout(() => { try { $("cam").click(); } catch {} }, 350);     // 物品：直接打开相机拍下一张（浏览器不允许时就算了，点「拍照」）
 }
 
-// ---- 扫码：用相机识别条码 / 二维码，填进编号框（扫码库 zxing.min.js 第一次用到时才加载）--------
+// ---- 扫码：用相机识别条码 / 二维码，填进编号框（扫码引擎 zxing-reader.js + zxing_reader.wasm 第一次用到时才加载）--------
+// 扫码引擎：zxing-wasm（ZXing-C++ 的 WebAssembly 版），比旧的 JS 版 zxing 准得多；第一次用到时才加载
+let engineReady = null;
 function loadZXing() {
-  return window.ZXing ? Promise.resolve() : new Promise((ok, no) => {
-    const s = document.createElement("script"); s.src = "zxing.min.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s);
+  if (engineReady) return engineReady;
+  const loadJs = window.ZXingWASM ? Promise.resolve() : new Promise((ok, no) => {
+    const s = document.createElement("script"); s.src = "zxing-reader.js"; s.onload = ok; s.onerror = no; document.head.appendChild(s);
   });
+  engineReady = loadJs.then(() => window.ZXingWASM.prepareZXingModule({
+    overrides: { locateFile: (path, prefix) => path.endsWith(".wasm") ? "zxing_reader.wasm" : prefix + path },
+    fireImmediately: true,
+  }));
+  engineReady.catch(() => { engineReady = null; });
+  return engineReady;
 }
 // iPhone 的 Safari 不指定分辨率时只给 640x480，条码在画面里太小认不出来，所以要指定高分辨率。
 // iPhone 还可能拒绝 video.play()（等相机权限弹窗时失去了「点击」这个动作；低电量模式也会），
-// 这时 ZXing 一直等「开始播放」，既没画面也不报错——所以 3 秒还没出画面就提示，点一下屏幕手动开始。
+// 这时画面一直出不来，也不报错——所以 3 秒还没出画面就提示，点一下屏幕手动开始。
 // 平时 1080p（省电、不发烫）；4 秒还没扫到就自动换成 4K 再试：iPhone 对焦最近要 15~20 厘米，条码只能离远点拿，
 // 画面里就小，分辨率越高，截出来的那一小块越清楚。
 let camDevices = [], camIdx = -1, camHi = false;
@@ -1644,12 +1653,8 @@ let hiTimer = 0;
 const camConstraints = () => ({ audio: false, video: { ...(camIdx >= 0 ? { deviceId: { exact: camDevices[camIdx].deviceId } } : { facingMode: { ideal: "environment" } }), width: { ideal: camHi ? 3840 : 1920 }, height: { ideal: camHi ? 2160 : 1080 } } });
 const CAM_HINT = "画面没出来？点一下屏幕";
 const IN_APP_BROWSER = /MicroMessenger|Zalo|FBAN|FBAV|Instagram|Line\/|DingTalk/i.test(navigator.userAgent);
-function scanHints() {
-  const Z = window.ZXing, F = Z.BarcodeFormat, hints = new Map();
-  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.EAN_13, F.EAN_8, F.UPC_A, F.ITF, F.DATA_MATRIX]);
-  hints.set(Z.DecodeHintType.TRY_HARDER, true);
-  return hints;
-}
+// minLineCount 2：一维码至少两条扫描线读出一样的内容才算数，挡掉被截断的假结果；tryInvert 自己处理反色
+const READER = { formats: [], tryHarder: true, tryRotate: true, tryInvert: true, tryDownscale: true, maxNumberOfSymbols: 1, minLineCount: 2 };
 // 用不了相机时返回原因（空串 = 可以用）；微信 / Zalo / Facebook 这类软件自带的浏览器常常没有相机接口
 function cameraBlocked(insecureMsg) {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) return "";
@@ -1662,16 +1667,11 @@ function cameraErrorMsg(e) {
   if (n === "NotReadableError") return "相机被别的程序占用了，请关掉后重试";
   return "打不开相机，请手动输入" + (n ? `（${n}）` : "");   // 带上错误名，方便反馈问题
 }
-// 不用 zxing 自带的「整帧视频」识别，改成自己从每一帧里截图再交给它认，原因有两个：
-// 1) 它处理视频时用一个全局计数器 FRAME_INDEX 隔帧交替「正常 / 反色」，而开了 TRY_HARDER 的一维条码读取器
-//    每帧失败后会再旋转一次图像、又把这个计数器翻一次——结果第一帧起每一帧都是「反色」，
-//    黑条白底的条码永远读不出来（所有手机都扫不出）。自己截图就不经过这个计数器。
-// 2) 整帧里除了条码还有大片金属 / 板子时，它判断黑白会被带偏（真实标签实测：同一个条码整帧读不出，
-//    截取中间条带就能读出，反过来也有）。所以每次换一种截法轮着试。
-// 另外条码小的时候，只截条码周围一小块比整帧好认（等于自动变焦）：蓝框里的、蓝框缩小到 0.6 倍的、蓝框放大 1.4 倍的，都轮着试。
-// 截法 = [x, y, 宽, 高（占整帧的比例）, 是否反色]；"frame" = 蓝框所在的那一块，数字是放大倍数。
-const ROI_CYCLE = [["frame", 1], [0, 0, 1, 1, false], ["frame", 0.6], [0.1, 0.3, 0.8, 0.4, false], ["frame", 1.4], [0, 0, 1, 1, true], [0.2, 0.35, 0.6, 0.3, false], [0.05, 0.375, 0.9, 0.25, false]];
-const MAX_SIDE = 1600;                       // 整帧在 4K 下太大，缩到这个边长再认（只截一小块时不缩，保留细节）
+// 不直接认整帧，而是从每一帧里截一块再认：条码小的时候，只截条码周围一小块比整帧好认（等于自动变焦），
+// 整帧里有大片金属 / 板子时也不会被带偏。蓝框里的、蓝框缩小到 0.6 倍的、中间一整条，轮着试。
+// 截法 = [x, y, 宽, 高（占整帧的比例）]；"frame" = 蓝框所在的那一块，数字是放大倍数。
+const ROI_CYCLE = [["frame", 1], [0.03, 0.19, 0.94, 0.62], ["frame", 0.6], ["frame", 1.4]];
+const MAX_SIDE = 1280;                       // 整帧在 4K 下太大，缩到这个边长再认（只截一小块时不缩，保留细节）
 // 蓝框在视频画面里的位置（占整帧的比例）；视频是铺满屏幕裁切显示的（object-fit: cover），要换算
 function frameRoi(video, k) {
   const vr = video.getBoundingClientRect(), fr = document.querySelector("#scan .frame").getBoundingClientRect();
@@ -1680,26 +1680,40 @@ function frameRoi(video, k) {
   const cx = (fr.left + fr.width / 2 - vr.left - ox) / s, cy = (fr.top + fr.height / 2 - vr.top - oy) / s;
   const w = fr.width * k / s, h = Math.max(fr.height * k, k > 1 ? fr.width * k * 0.6 : 0) / s;   // 放大时高度至少是宽度的 0.6，二维码是方的
   const x = Math.max(0, cx - w / 2), y = Math.max(0, cy - h / 2);
-  return [x / video.videoWidth, y / video.videoHeight, Math.min(w, video.videoWidth - x) / video.videoWidth, Math.min(h, video.videoHeight - y) / video.videoHeight, false];
+  return [x / video.videoWidth, y / video.videoHeight, Math.min(w, video.videoWidth - x) / video.videoWidth, Math.min(h, video.videoHeight - y) / video.videoHeight];
 }
-function useRoiDecode(rd) {
-  const Z = window.ZXing, cv = document.createElement("canvas"), g = cv.getContext("2d", { willReadFrequently: true });
-  let n = 0;
-  rd.timeBetweenDecodingAttempts = 100;     // 没扫到时库默认 0 毫秒就重试，手机会一直满负荷
-  rd.decode = video => {
-    const roi = ROI_CYCLE[n++ % ROI_CYCLE.length];
-    if (!video.videoWidth) throw new Z.NotFoundException();      // 画面还没出来
-    const [fx, fy, fw, fh, invert] = roi[0] === "frame" ? frameRoi(video, roi[1]) : roi;
-    const sx = Math.round(video.videoWidth * fx), sy = Math.round(video.videoHeight * fy);
-    const sw = Math.round(video.videoWidth * fw), sh = Math.round(video.videoHeight * fh);
-    if (!sw || !sh) throw new Z.NotFoundException();
-    const k = Math.min(1, MAX_SIDE / Math.max(sw, sh));
-    cv.width = Math.round(sw * k); cv.height = Math.round(sh * k);
-    g.drawImage(video, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
-    let src = new Z.HTMLCanvasElementLuminanceSource(cv);
-    if (invert) src = src.invert();
-    return rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src)));
+// One scanner = one camera stream + one decode loop; reset() stops both.
+function newScanner() {
+  return {
+    stopped: false, stream: null, n: 0,
+    reset() {
+      this.stopped = true;
+      if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+      const v = $("scanVideo");
+      if (v.srcObject === this.stream) v.srcObject = null;      // a newer scanner may already own the video
+      this.stream = null;
+    },
   };
+}
+async function scanLoop(rd) {
+  const v = $("scanVideo"), cv = document.createElement("canvas"), g = cv.getContext("2d", { willReadFrequently: true });
+  while (!rd.stopped) {
+    if (v.videoWidth && rd.stream) {
+      try {
+        const [fx, fy, fw, fh] = (r => r[0] === "frame" ? frameRoi(v, r[1]) : r)(ROI_CYCLE[rd.n++ % ROI_CYCLE.length]);
+        const sx = Math.round(v.videoWidth * fx), sy = Math.round(v.videoHeight * fy);
+        const sw = Math.round(v.videoWidth * fw), sh = Math.round(v.videoHeight * fh);
+        if (sw && sh) {
+          const k = Math.min(1, MAX_SIDE / Math.max(sw, sh));
+          cv.width = Math.round(sw * k); cv.height = Math.round(sh * k);
+          g.drawImage(v, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+          const hit = (await window.ZXingWASM.readBarcodes(g.getImageData(0, 0, cv.width, cv.height), READER)).find(r => r.isValid && r.text);
+          if (hit && !rd.stopped) onLiveResult(hit);
+        }
+      } catch { /* engine hiccup: try the next frame */ }
+    }
+    await new Promise(r => setTimeout(r, 60));      // without a pause the phone runs flat out
+  }
 }
 const camTrack = v => v.srcObject && v.srcObject.getVideoTracks()[0];
 const focusCaps = () => { const t = camTrack($("scanVideo")); return (t && t.getCapabilities && t.getCapabilities()) || {}; };
@@ -1755,12 +1769,15 @@ async function afterCamera(v) {
   $("camSwap").classList.toggle("hidden", camDevices.length < 2);
 }
 // 让 rd 开始用相机扫；画面出来（resolve）之前如果太久，就在 msgEl 里提示点屏幕
-async function openCamera(rd, videoId, msgEl, onResult) {
-  useRoiDecode(rd);
-  const orig = msgEl.textContent, timer = setTimeout(() => { msgEl.textContent = CAM_HINT; }, 3000);
+async function openCamera(rd, videoId, msgEl) {
+  const v = $(videoId), orig = msgEl.textContent, timer = setTimeout(() => { msgEl.textContent = CAM_HINT; }, 3000);
   try {
-    await rd.decodeFromConstraints(camConstraints(), videoId, result => { if (result) onResult(result); });
-    await afterCamera($(videoId));
+    const stream = await navigator.mediaDevices.getUserMedia(camConstraints());
+    if (rd.stopped) { stream.getTracks().forEach(t => t.stop()); return; }
+    rd.stream = stream; v.srcObject = stream;
+    v.play().catch(() => {});      // iPhone may leave this pending until the user taps; the loop just waits for a picture
+    await afterCamera(v);
+    scanLoop(rd);
   } finally {
     clearTimeout(timer);
     if (msgEl.textContent === CAM_HINT) msgEl.textContent = orig;
@@ -1771,25 +1788,22 @@ $("scan").addEventListener("click", e => {
   if (!e.target.closest("button, label")) refocus(e.clientX, e.clientY);
 });
 
-// 防误读：每一帧是从画面里截一小块来认的，条码被截断时 ITF / Code39 这类没有校验位的格式会读出「008」这种假结果。
+// 防误读：条码被截断时 ITF / Code39 这类没有校验位的格式会读出「008」这种假结果（引擎再准也防不住）。
 // 所以同一个结果要在不同的截图里读到多次才算数：有校验位的（Code128 / QR / EAN…）2 次，没有校验位的（ITF / Code39）3 次；
 // 读到不一样的结果就不会接受，继续扫，直到某一个结果明显占多数。
-const WEAK_FORMATS = new Set(["ITF", "CODE_39"]), VOTE_WINDOW = 5000;
+const VOTE_WINDOW = 5000, isWeak = fmt => /^(ITF|Code39)/i.test(fmt || "");
 let votes = [];
-const votesNeeded = fmt => WEAK_FORMATS.has(fmt) ? 3 : 2;
-// Returns the winning text once it has enough votes (and nothing else is tied with it), else "" and a progress hint.
+const votesNeeded = fmt => isWeak(fmt) ? 3 : 2;
+// Returns the winning text once it has enough votes (and nothing else is tied with it), else "".
 function castVote(text, fmt, now = Date.now()) {
   votes = votes.filter(v => now - v.t < VOTE_WINDOW); votes.push({ text, fmt, t: now });
-  const n = votes.filter(v => v.text === text).length, need = votesNeeded(fmt);
+  const n = votes.filter(v => v.text === text).length;
   const rival = votes.some(v => v.text !== text && votes.filter(u => u.text === v.text).length >= n);
-  if (n >= need && !rival) return text;
-  return "";
+  return n >= votesNeeded(fmt) && !rival ? text : "";
 }
-function onLiveResult(result) {
-  if (!result) return;
-  const text = String(result.getText() || "").trim(); if (!text) return;
-  const fmt = window.ZXing.BarcodeFormat[result.getBarcodeFormat()];
-  const ok = castVote(text, fmt);
+function onLiveResult(hit) {
+  const text = String(hit.text || "").trim(); if (!text) return;
+  const ok = castVote(text, hit.format);
   if (ok) finishScan(ok);
   else $("scanMsg").textContent = "正在确认，请保持不动…";
 }
@@ -1805,10 +1819,10 @@ async function startScan(id) {
   await runCamera();
 }
 async function runCamera() {
-  const rd = reader = new window.ZXing.BrowserMultiFormatReader(scanHints(), 250);
+  const rd = reader = newScanner();
   clearTimeout(hiTimer);
   try {
-    await openCamera(rd, "scanVideo", $("scanMsg"), onLiveResult);
+    await openCamera(rd, "scanVideo", $("scanMsg"));
     if (reader !== rd) rd.reset();           // 等相机的时候已经点了取消，别让相机在后台一直开着
     else if (!camHi) hiTimer = setTimeout(() => {
       if (reader !== rd) return;
@@ -1827,10 +1841,10 @@ $("camSwap").onclick = () => {
   runCamera();
 };
 // 「拍照识别」：实时画面（网页相机）对焦比系统自带的相机差很多，所以改用系统相机拍一张清楚的照片，再从照片里认条码。
-// 照片分辨率高，条码小也认得出；和实时识别一样，换几种截取范围（整张、中间一块、中间条带）× 正常 / 反色轮着试。
+// 照片分辨率高，条码小也认得出；和实时识别一样，换几种截取范围（整张、中间一块、中间条带）轮着试。
 const PHOTO_ROIS = [[0, 0, 1, 1], [0.15, 0.15, 0.7, 0.7], [0, 0.3, 1, 0.4], [0.25, 0.25, 0.5, 0.5], [0.3, 0.4, 0.4, 0.2]];
 async function decodePhoto(file) {
-  const Z = window.ZXing, rd = new Z.BrowserMultiFormatReader(scanHints()), url = URL.createObjectURL(file);
+  const url = URL.createObjectURL(file);
   try {
     const img = new Image(); img.src = url; await img.decode();
     const cv = document.createElement("canvas"), g = cv.getContext("2d", { willReadFrequently: true });
@@ -1843,23 +1857,14 @@ async function decodePhoto(file) {
       const k = Math.min(1, 2000 / Math.max(sw, sh));
       cv.width = Math.round(sw * k); cv.height = Math.round(sh * k);
       g.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
-      for (const invert of [false, true]) {
-        let src = new Z.HTMLCanvasElementLuminanceSource(cv);
-        if (invert) src = src.invert();
-        try {
-          const r = rd.decodeBitmap(new Z.BinaryBitmap(new Z.HybridBinarizer(src)));
-          const text = String(r.getText() || "").trim(), fmt = Z.BarcodeFormat[r.getBarcodeFormat()];
-          if (text) {
-            reads.push({ text, fmt });
-            const n = reads.filter(v => v.text === text).length;
-            if (n >= votesNeeded(fmt) && !reads.some(v => v.text !== text && reads.filter(u => u.text === v.text).length >= n)) return text;
-          }
-        } catch {}
-        await new Promise(r => setTimeout(r));      // let the page breathe between attempts
-      }
+      const r = (await window.ZXingWASM.readBarcodes(g.getImageData(0, 0, cv.width, cv.height), READER)).find(x => x.isValid && x.text);
+      if (!r) continue;
+      const text = String(r.text).trim(); reads.push({ text, fmt: r.format });
+      const n = reads.filter(v => v.text === text).length;
+      if (n >= votesNeeded(r.format) && !reads.some(v => v.text !== text && reads.filter(u => u.text === v.text).length >= n)) return text;
     }
     const texts = [...new Set(reads.map(v => v.text))];
-    if (texts.length === 1 && !WEAK_FORMATS.has(reads[0].fmt)) return texts[0];
+    if (texts.length === 1 && !isWeak(reads[0].fmt)) return texts[0];
   } finally { URL.revokeObjectURL(url); }
   return "";
 }
